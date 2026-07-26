@@ -228,6 +228,114 @@ def execution_layers(
     return layers
 
 
+# --------------------------------------------------------------------------- #
+# M4: loop back-edges and branch gating
+# --------------------------------------------------------------------------- #
+#: An edge whose label starts with this prefix is a loop back-edge: it is
+#: excluded from dependency ordering (so the schedulable graph stays a DAG) and
+#: instead triggers a controlled re-run of the loop body.
+LOOP_EDGE_PREFIX = "loop"
+
+
+def is_loop_edge(label: object) -> bool:
+    """True when an edge label marks it as a loop back-edge."""
+    if not label:
+        return False
+    return str(label).strip().lower().startswith(LOOP_EDGE_PREFIX)
+
+
+def split_loop_edges(
+    labelled_edges: Sequence[Tuple[NodeId, NodeId, object]]
+) -> Tuple[List[Tuple[NodeId, NodeId]], List[Tuple[NodeId, NodeId, object]]]:
+    """Partition ``(source, target, label)`` triples into forward and loop edges.
+
+    Returns ``(forward_pairs, loop_triples)``. Forward pairs are what the
+    scheduler uses for dependency ordering; loop triples drive iteration.
+    """
+    forward: List[Tuple[NodeId, NodeId]] = []
+    loops: List[Tuple[NodeId, NodeId, object]] = []
+    for source, target, label in labelled_edges:
+        if is_loop_edge(label):
+            loops.append((source, target, label))
+        else:
+            forward.append((source, target))
+    return forward, loops
+
+
+def loop_body(
+    entry: NodeId, exit_node: NodeId, edges: Sequence[Tuple[NodeId, NodeId]]
+) -> Set[NodeId]:
+    """Nodes on any forward path from ``entry`` to ``exit_node`` (inclusive).
+
+    Used to work out exactly which nodes must be reset for the next iteration
+    of a loop whose back-edge runs ``exit_node -> entry``.
+    """
+    reachable_from_entry = descendants(entry, edges)
+    reachable_from_entry.add(entry)
+
+    reverse: Dict[NodeId, List[NodeId]] = defaultdict(list)
+    for source, target in edges:
+        reverse[target].append(source)
+
+    can_reach_exit: Set[NodeId] = set()
+    queue = deque([exit_node])
+    while queue:
+        node = queue.popleft()
+        if node in can_reach_exit:
+            continue
+        can_reach_exit.add(node)
+        queue.extend(reverse.get(node, ()))
+
+    body = reachable_from_entry & can_reach_exit
+    body.add(entry)
+    body.add(exit_node)
+    return body
+
+
+def validate_graph_with_loops(
+    node_ids: Iterable[NodeId],
+    labelled_edges: Sequence[Tuple[NodeId, NodeId, object]],
+    *,
+    max_nodes: int = 1000,
+) -> Tuple[GraphValidation, List[Tuple[NodeId, NodeId]], List[Tuple[NodeId, NodeId, object]]]:
+    """Validate a graph that may contain explicitly-labelled loop back-edges.
+
+    Loop edges are removed before cycle detection, so a workflow may legally
+    contain a cycle *provided* the closing edge is labelled ``loop``. Any other
+    cycle is still an error.
+
+    Returns ``(validation, forward_pairs, loop_triples)``.
+    """
+    ids = list(node_ids)
+    forward, loops = split_loop_edges(labelled_edges)
+    validation = validate_graph(ids, forward, max_nodes=max_nodes)
+
+    known = set(ids)
+    errors = list(validation.errors)
+    warnings = list(validation.warnings)
+    for source, target, label in loops:
+        if source not in known:
+            errors.append(f"Loop edge references unknown source node {source!r}.")
+        if target not in known:
+            errors.append(f"Loop edge references unknown target node {target!r}.")
+        if source == target:
+            errors.append(f"Loop edge on node {source!r} points at itself.")
+    if loops:
+        warnings.append(
+            f"{len(loops)} loop back-edge(s) present; iteration is capped by "
+            "WORKFLOW_MAX_LOOP_ITERATIONS."
+        )
+
+    result = GraphValidation(
+        is_valid=not errors,
+        errors=errors,
+        warnings=warnings,
+        cycles=validation.cycles,
+        orphans=validation.orphans,
+    )
+    return result, forward, loops
+
+
 def descendants(
     start: NodeId, edges: Sequence[Tuple[NodeId, NodeId]]
 ) -> Set[NodeId]:

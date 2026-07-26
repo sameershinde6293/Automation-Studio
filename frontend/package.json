@@ -10,7 +10,11 @@
     "build": "tsc && vite build && tsc -p electron/tsconfig.json",
     "serve": "vite preview",
     "electron:dev": "concurrently \"cross-env BROWSER=none vite\" \"wait-on http://localhost:5173 && tsc -p electron/tsconfig.json && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
-    "electron:build": "npm run build && electron-builder"
+    "electron:build": "npm run build && electron-builder",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -22,15 +26,21 @@
     "lodash-es": "^4.17.21"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.4.6",
+    "@testing-library/react": "^15.0.7",
+    "@testing-library/user-event": "^14.5.2",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
+    "@vitest/ui": "^1.6.0",
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
     "electron": "^31.3.1",
     "electron-builder": "^24.13.3",
+    "jsdom": "^24.1.0",
     "typescript": "^5.2.2",
     "vite": "^5.3.4",
+    "vitest": "^1.6.0",
     "wait-on": "^7.2.0"
   },
   "build": {

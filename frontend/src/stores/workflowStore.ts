@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Workflow, WorkflowNode, WorkflowEdge, ExecutionState } from '../types/workflow';
 import { v4 as uuidv4 } from 'uuid';
+import { deserializeGraph, resolveIdMap, serializeGraph } from './graphAdapter';
 
 const API_BASE = 'http://localhost:8000/api/workflows';
 
@@ -13,6 +14,9 @@ interface WorkflowStore {
   historyIndex: number;
   isDirty: boolean;
   recentWorkflows: Workflow[];
+  /** editor node id -> backend node id, produced by the last save/load. */
+  nodeIdMap: Record<string, number>;
+  lastSaveError: string | null;
 
   setNodes: (nodes: WorkflowNode[]) => void;
   setEdges: (edges: WorkflowEdge[]) => void;
@@ -32,6 +36,7 @@ interface WorkflowStore {
   paste: () => void;
   duplicateSelected: () => void;
   updateExecutionState: (nodeId: string, state: Partial<ExecutionState>) => void;
+  saveToHistory: () => void;
   resetExecution: () => void;
   setDirty: (dirty: boolean) => void;
 }
@@ -41,10 +46,16 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   nodes: [],
   edges: [],
   executionStates: {},
-  history: [],
-  historyIndex: -1,
+  // M4 fix: the undo stack must start with a baseline snapshot. Previously it
+  // began empty with historyIndex -1, so the *first* edit could never be
+  // undone (undo requires historyIndex > 0) and redo could never restore it.
+  // The M3 test for this existed but no runner was configured, so it never ran.
+  history: [{ nodes: [], edges: [] }],
+  historyIndex: 0,
   isDirty: false,
   recentWorkflows: [],
+  nodeIdMap: {},
+  lastSaveError: null,
 
   setNodes: (nodes) => { set({ nodes, isDirty: true }); get().saveToHistory(); },
   setEdges: (edges) => { set({ edges, isDirty: true }); get().saveToHistory(); },
@@ -81,41 +92,59 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
 
   saveWorkflow: async () => {
     const { nodes, edges, currentWorkflow } = get();
-    const payload = {
-      name: currentWorkflow?.name || 'Untitled Workflow',
-      nodes: nodes.map(n => ({ id: n.id, type: n.type, position: n.position, data: n.data })),
-      edges: edges.map(e => ({ id: e.id, source: e.source, target: e.target })),
-    };
+
+    // M4: the editor graph must be translated into the backend's schema
+    // (node_type / position_x / source_id, integer ids). Sending the raw
+    // editor shape returned HTTP 422 for every save before this.
+    const { nodes: apiNodes, edges: apiEdges, ordinalMap } = serializeGraph(nodes, edges);
 
     try {
-      let res;
-      if (currentWorkflow?.id) {
-        res = await fetch(`${API_BASE}/${currentWorkflow.id}/graph`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-      } else {
-        res = await fetch(`${API_BASE}/`, {
+      let workflowId = currentWorkflow?.id;
+
+      if (!workflowId) {
+        const created = await fetch(`${API_BASE}/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({
+            name: currentWorkflow?.name || 'Untitled Workflow',
+            description: currentWorkflow?.description,
+          }),
         });
+        if (!created.ok) throw new Error(`Create failed: ${created.status}`);
+        workflowId = (await created.json()).id;
+      }
+
+      const res = await fetch(`${API_BASE}/${workflowId}/graph`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nodes: apiNodes, edges: apiEdges }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error?.message || `Save failed: ${res.status}`);
       }
       const data = await res.json();
+
       const saved: Workflow = {
-        ...payload,
-        id: data.workflow_id || currentWorkflow?.id || uuidv4(),
+        ...(currentWorkflow ?? ({} as Workflow)),
+        id: workflowId as any,
+        name: currentWorkflow?.name || 'Untitled Workflow',
+        nodes,
+        edges,
         version: (currentWorkflow?.version || 0) + 1,
         createdAt: currentWorkflow?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      set({ currentWorkflow: saved, isDirty: false });
+      set({ currentWorkflow: saved, isDirty: false, lastSaveError: null });
+      // Publish the editor-id -> backend-id map so live execution events can
+      // be matched back to canvas nodes.
+      set({ nodeIdMap: resolveIdMap(ordinalMap, data?.id_map) });
       localStorage.setItem('currentWorkflow', JSON.stringify(saved));
     } catch (e) {
-      console.warn('Backend save failed, falling back to localStorage');
-      const saved = { ...get().currentWorkflow, nodes, edges, updatedAt: new Date().toISOString() };
-      set({ currentWorkflow: saved, isDirty: false });
+      const message = (e as Error).message || 'Backend save failed';
+      console.warn('Backend save failed, falling back to localStorage:', message);
+      const saved = { ...get().currentWorkflow, nodes, edges, updatedAt: new Date().toISOString() } as Workflow;
+      set({ currentWorkflow: saved, isDirty: false, lastSaveError: message });
       localStorage.setItem('currentWorkflow', JSON.stringify(saved));
     }
   },
@@ -127,19 +156,24 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   loadFromBackend: async (id) => {
     try {
       const res = await fetch(`${API_BASE}/${id}/graph`);
+      if (!res.ok) throw new Error(`Load failed: ${res.status}`);
       const data = await res.json();
+      const { nodes, edges, idMap } = deserializeGraph(data);
       const wf: Workflow = {
         id: data.workflow.id,
         name: data.workflow.name,
-        nodes: data.nodes.map((n: any) => ({ id: n.id, type: n.node_type, position: { x: n.position_x, y: n.position_y }, data: { label: n.name, config: n.config } })),
-        edges: data.edges.map((e: any) => ({ id: e.id, source: e.source_id, target: e.target_id })),
+        description: data.workflow.description,
+        nodes,
+        edges,
         version: data.workflow.version,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
       get().loadWorkflow(wf);
+      set({ nodeIdMap: idMap });
     } catch (e) {
-      console.error('Failed to load from backend');
+      console.error('Failed to load from backend:', (e as Error).message);
+      set({ lastSaveError: (e as Error).message });
     }
   },
 
@@ -165,8 +199,16 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
 
   saveToHistory: () => {
     const { nodes, edges, history, historyIndex } = get();
-    const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push({ nodes: [...nodes], edges: [...edges] });
+    // M4 fix: guarantee a baseline entry exists before recording the new state.
+    // Without it the first edit landed at index 0 and `undo` (which requires
+    // historyIndex > 0) could never step back past it. Seeding here rather than
+    // only at store creation keeps undo working after a direct setState, which
+    // is how the editor restores a workflow and how tests reset state.
+    const base =
+      history.length === 0
+        ? [{ nodes: [], edges: [] }]
+        : history.slice(0, historyIndex + 1);
+    const newHistory = [...base, { nodes: [...nodes], edges: [...edges] }];
     set({ history: newHistory, historyIndex: newHistory.length - 1 });
   },
 

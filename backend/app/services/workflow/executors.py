@@ -663,8 +663,21 @@ class ExecutorRegistry:
         """
         from app.services.workflow.runtime import RuntimeNodeExecutor
 
+        # Canonical names come from the node library; everything else that maps
+        # to the same executor instance is an alias. Deriving this from the
+        # library (rather than "first seen alphabetically") keeps the editor's
+        # canonical type — e.g. httpRequest — from being hidden behind an alias
+        # such as "http" purely because of sort order.
+        canonical: Dict[int, str] = {}
+        try:
+            from app.services.workflow.nodes import NODE_LIBRARY
+
+            for node_type, executor in NODE_LIBRARY.items():
+                canonical[id(executor)] = node_type
+        except Exception:  # pragma: no cover - library is optional
+            logger.debug("Node library unavailable for schema canonicalisation.")
+
         entries: List[Dict[str, Any]] = []
-        seen_ids = set()
         for node_type, executor in sorted(self.executors.items()):
             if isinstance(executor, RuntimeNodeExecutor):
                 entry = executor.describe(node_type)
@@ -679,8 +692,9 @@ class ExecutorRegistry:
                     "schema": {"inputs": [], "outputs": []},
                     "config_schema": executor.config_schema,
                 }
-            entry["is_alias"] = id(executor) in seen_ids
-            seen_ids.add(id(executor))
+            preferred = canonical.get(id(executor))
+            entry["is_alias"] = preferred is not None and preferred != node_type
+            entry["canonical_type"] = preferred or node_type
             entries.append(entry)
         return entries
 

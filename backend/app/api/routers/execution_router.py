@@ -287,15 +287,49 @@ def execution_detail(execution_id: int, db: Session = Depends(get_db)) -> Dict[s
 # Live streaming (SSE)
 # --------------------------------------------------------------------------- #
 async def _event_stream(
-    request: Request, execution_id: int, after_sequence: int
+    request: Request,
+    execution_id: int,
+    after_sequence: int,
+    already_finished: bool = False,
+    final_status: Optional[str] = None,
 ) -> AsyncGenerator[str, None]:
-    """Yield SSE frames for one execution until it finishes or the client goes away."""
+    """Yield SSE frames for one execution until it finishes or the client leaves.
+
+    Terminating correctly matters in three distinct cases:
+
+    1. The run finishes while we are streaming -> the live ``execution.finished``
+       event breaks the loop.
+    2. The run already finished but its events are still buffered -> the
+       backfill contains ``execution.finished``, so we must stop right after
+       replaying it. (Missing this check made the endpoint heartbeat forever.)
+    3. The run finished long ago and its buffer was evicted -> there is nothing
+       to replay, so we synthesise a terminal frame from the persisted status.
+    """
     subscription = execution_broker.subscribe(execution_id)
     heartbeat = max(1.0, settings.EXECUTION_STREAM_HEARTBEAT_SECONDS)
     try:
         # Backfill anything the client missed before subscribing.
+        replayed_terminal = False
         for event in execution_broker.replay_events(execution_id, after_sequence):
             yield format_sse(event)
+            if event.event == stream_events.EVENT_EXECUTION_FINISHED:
+                replayed_terminal = True
+
+        if replayed_terminal:
+            return
+
+        if already_finished:
+            # Case 3: nothing buffered, but the run is over. Tell the client so
+            # it can close instead of waiting for an event that never comes.
+            yield format_sse(
+                stream_events.ExecutionEvent(
+                    execution_id=execution_id,
+                    event=stream_events.EVENT_EXECUTION_FINISHED,
+                    sequence=execution_broker.next_sequence(execution_id),
+                    payload={"status": final_status, "replayed": True},
+                )
+            )
+            return
 
         while True:
             if await request.is_disconnected():
@@ -331,9 +365,15 @@ async def execution_stream(
     queues are bounded, so a slow client is dropped rather than stalling the
     engine.
     """
-    _require_execution(db, execution_id)
+    execution = _require_execution(db, execution_id)
+    # Snapshot terminality here, while the request-scoped session is alive; the
+    # generator runs after the response starts and must not touch the ORM.
+    already_finished = bool(execution.status and execution.status.is_terminal)
+    final_status = execution.status.value if execution.status else None
     return StreamingResponse(
-        _event_stream(request, execution_id, after_sequence),
+        _event_stream(
+            request, execution_id, after_sequence, already_finished, final_status
+        ),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache, no-transform",

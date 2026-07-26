@@ -1,12 +1,11 @@
 # Project Status
 
-**Current Status:** Release Candidate (RC) V1.0 Completed
-**Version:** 1.0.0-rc
+**Current Status:** Maintenance & Continuous Improvement Phase
+**Version:** 1.0.1-alpha
 
 ## Recent Updates
-- Completed AI Runtime (Model registry, prompt orchestrator, tracking).
-- Completed Media Pipeline (Jobs & Asset tracking).
-- Enhanced Desktop UI (React views for all subsystems).
-- Implemented Plugin SDK and Enterprise Features (RBAC, Audit).
-- Verified full system stability.
-- Produced Version 1.0 Release Candidate.
+- Transitioned to Maintenance Mode.
+- Implemented `pytest-cov` and executed initial test coverage scan (Currently 82% backend coverage).
+- Added `tests/api/test_routers.py` ensuring API endpoint boundaries are covered by unit tests.
+- Modernized FastAPI lifespan contexts preventing deprecation warnings.
+- Bumping baseline semantic version to 1.0.1-alpha for continuous improvements.

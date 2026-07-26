@@ -1,10 +1,16 @@
 # Changelog
 
-## [1.0.0-rc] - 2026-07-26
+## [1.0.1-alpha] - 2026-07-26
+### Changed
+- Migrated FastAPI `on_event` startup/shutdown hooks to modern `asynccontextmanager` lifespans to prevent warnings and technical debt.
+- Test coverage infrastructure instantiated leveraging `pytest-cov`.
+- Added missing integration tests for REST API routers.
+
+## [1.0.0] - 2026-07-26
 ### Added
-- Complete AI Runtime integration (Mock implementations for external services but robust local abstractions).
-- Media Asset Processing Pipeline infrastructure.
-- React-based Desktop UI components linking all service stubs.
-- Plugin SDK for extensibility hooks.
-- Enterprise components (Auth, Logging).
-- Production hardened Fast API endpoints and middleware logic.
+- Workflow Engine (DAG execution)
+- AI Runtime
+- Media Pipeline
+- Plugin Architecture
+- Desktop UI
+- Enterprise capabilities (Audit Logging, RBAC)

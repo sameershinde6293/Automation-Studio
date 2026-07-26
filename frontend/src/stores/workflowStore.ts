@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Workflow, WorkflowNode, WorkflowEdge, ExecutionState } from '../types/workflow';
+import type { Workflow, WorkflowNode, WorkflowEdge, ExecutionState } from '../types/workflow';
 import { v4 as uuidv4 } from 'uuid';
 import { deserializeGraph, resolveIdMap, serializeGraph } from './graphAdapter';
 

@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, File, Query, Response, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 
+from app.api.dependencies import require_read_write
 from app.core.errors import NotFoundError
 from app.domain.repositories.media.media_repository import MediaAssetCreate, MediaAssetUpdate, media_asset_repo, processing_job_repo
 from app.infrastructure.database.database import get_db
@@ -13,7 +14,10 @@ from app.services.media.ffmpeg import ffmpeg_status, probe_media
 from app.services.media.pipeline import media_pipeline
 from app.services.media.storage import delete_file, resolve_media_path, write_stream
 
-router = APIRouter(prefix="/media", tags=["Media"])
+# Router-level authorization. Applies to every route here, including any
+# added later, so a new endpoint cannot ship unprotected by omission.
+# Media assets are content.
+router = APIRouter(prefix="/media", tags=["Media"], dependencies=[Depends(require_read_write)])
 
 
 def _asset_or_404(db: Session, asset_id: int):

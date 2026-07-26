@@ -29,6 +29,19 @@ request_id_var: contextvars.ContextVar[str] = contextvars.ContextVar(
     "request_id", default=""
 )
 
+# Spans a whole logical operation, which may cover several HTTP requests and
+# the background execution they trigger. Supplied by the client, or defaulted
+# to the request id. This is what makes an editor action traceable end to end.
+correlation_id_var: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "correlation_id", default=""
+)
+
+# Set once a request has been authenticated, so every subsequent log line is
+# attributable to a principal without the caller threading it through.
+user_context_var: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "user_context", default=""
+)
+
 _SECRET_PATTERNS = [
     re.compile(r"(sk-[A-Za-z0-9_\-]{8,})"),
     re.compile(r"(?i)(api[_-]?key\"?\s*[:=]\s*\"?)([^\s\",}]+)"),
@@ -50,11 +63,21 @@ def redact(text: str) -> str:
 
 
 class RedactingFilter(logging.Filter):
+    """Mask credentials and attach ambient correlation context to every record."""
+
     def filter(self, record: logging.LogRecord) -> bool:
         if isinstance(record.msg, str):
             record.msg = redact(record.msg)
         if not hasattr(record, "request_id"):
             record.request_id = request_id_var.get("")
+        if not hasattr(record, "correlation_id"):
+            correlation = correlation_id_var.get("")
+            if correlation:
+                record.correlation_id = correlation
+        if not hasattr(record, "user"):
+            user = user_context_var.get("")
+            if user:
+                record.user = user
         return True
 
 
@@ -78,6 +101,9 @@ class JsonFormatter(logging.Formatter):
         rid = getattr(record, "request_id", "") or request_id_var.get("")
         if rid:
             payload["request_id"] = rid
+        correlation = getattr(record, "correlation_id", "") or correlation_id_var.get("")
+        if correlation:
+            payload["correlation_id"] = correlation
         if record.exc_info:
             payload["exception"] = redact(self.formatException(record.exc_info))
         for key, value in record.__dict__.items():

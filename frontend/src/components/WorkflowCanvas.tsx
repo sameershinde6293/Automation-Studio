@@ -1,9 +1,12 @@
 import React, { useCallback, useRef, useEffect } from 'react';
 import ReactFlow, {
   Background, Controls, MiniMap, useNodesState, useEdgesState,
-  addEdge, Connection, Edge, Node, ReactFlowProvider, Panel,
-  useReactFlow, SelectionOnDrag,
+  addEdge, ReactFlowProvider, Panel,
+  useReactFlow,
 } from 'reactflow';
+// Type-only: these exist in reactflow's type namespace, not its runtime
+// exports, so importing them as values makes the bundler warn.
+import type { Connection, Edge, Node } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { useWorkflowStore } from '../stores/workflowStore';
 import { nodeTypes } from './nodes';

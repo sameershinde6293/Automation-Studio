@@ -5,12 +5,16 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.orm import Session
 
+from app.api.dependencies import require_read_write
 from app.core.errors import NotFoundError
 from app.domain.repositories.project_repository import ProjectCreate, ProjectUpdate
 from app.infrastructure.database.database import get_db
 from app.services.project.project_service import project_service
 
-router = APIRouter(prefix="/projects", tags=["Projects"])
+# Router-level authorization. Applies to every route here, including any
+# added later, so a new endpoint cannot ship unprotected by omission.
+# Projects are content.
+router = APIRouter(prefix="/projects", tags=["Projects"], dependencies=[Depends(require_read_write)])
 
 
 @router.post("/", summary="Create a project")

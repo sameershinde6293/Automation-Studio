@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { RotateCcw, PlayCircle } from 'lucide-react';
 import { useExecutionStore } from '../../stores/executionStore';
-import { ExecutionSummary } from '../../api/executionApi';
+import type { ExecutionSummary } from '../../api/executionApi';
 
 const STATUS_COLOURS: Record<string, string> = {
   COMPLETED: '#22c55e',

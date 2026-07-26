@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useExecutionStore } from '../../stores/executionStore';
-import { LogRecord } from '../../api/executionApi';
+import type { LogRecord } from '../../api/executionApi';
 
 const LEVEL_COLOURS: Record<string, string> = {
   DEBUG: '#64748b',

@@ -8,13 +8,17 @@ from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.api.dependencies import require_read_manage_plugins
 from app.core.errors import ConflictError, NotFoundError
 from app.domain.repositories.plugin_repository import PluginCreate, PluginUpdate, plugin_repo
 from app.infrastructure.database.database import get_db
 from app.services.plugin.plugin_service import plugin_service
 from app.services.plugin_sdk.sdk import plugin_sdk
 
-router = APIRouter(prefix="/plugins", tags=["Plugins"])
+# Router-level authorization. Applies to every route here, including any
+# added later, so a new endpoint cannot ship unprotected by omission.
+# Plugins execute code, so mutating them needs manage_plugins.
+router = APIRouter(prefix="/plugins", tags=["Plugins"], dependencies=[Depends(require_read_manage_plugins)])
 
 
 class ToggleRequest(BaseModel):

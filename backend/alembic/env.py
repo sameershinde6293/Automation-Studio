@@ -15,6 +15,8 @@ from app.domain.models.plugin import Plugin
 from app.domain.models.workflow import Workflow, Node, Edge, WorkflowExecution, NodeExecution
 from app.domain.models.ai.models import AIModelRegistry, Conversation, Message, TokenUsage
 from app.domain.models.media.models import MediaAsset, ProcessingJob
+from app.domain.models.enterprise import AuditEvent
+from app.domain.models.identity import ApiKey, RefreshSession, User
 from app.infrastructure.config.settings import settings
 
 config = context.config

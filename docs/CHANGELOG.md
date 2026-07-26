@@ -2,6 +2,163 @@
 
 ## [1.1.0] - 2026-07-26 (in progress)
 
+### Milestone 5 — Production readiness and platform hardening
+
+Turns a functional application into a deployable platform. No new product
+features: this milestone is security, reliability, observability, deployment
+and verification. Full pre-work audit in `M5_GAP_ANALYSIS.md`.
+
+#### Security — authentication and authorization
+- **Added authentication.** The platform previously had no notion of *who* was
+  calling: all ~80 endpoints were anonymous. Added `users`, `api_keys` and
+  `refresh_sessions`, PBKDF2-HMAC-SHA256 password hashing (600k iterations,
+  per-password salt), and a `Principal` abstraction every router reasons about.
+- **RBAC is now enforced.** `require_permission` existed since M0 but *no route
+  ever called it*, so the role model was decorative. Added FastAPI dependencies
+  (`require_read`/`require_write`/`require_manage_users`/…) applied per
+  endpoint, reusing the existing `ROLE_PERMISSIONS` map rather than inventing a
+  second model.
+- **JWT (HS256), dependency-free.** The `alg` header is pinned before
+  verification, so `alg: none` and algorithm-confusion attacks are rejected;
+  signatures are compared in constant time; `exp`/`nbf`/`iss`/`aud`/`typ` are
+  all validated, so a refresh token cannot be replayed as an access token.
+- **Refresh rotation with theft detection.** Reusing a consumed refresh token
+  revokes every session for that user.
+- **API keys** with SHA-256 storage (plaintext shown once), optional expiry and
+  scopes. Scopes *intersect* the owner's role, so a key can only narrow
+  authority, never escalate.
+- Login lockout, and uniform failure timing/messaging so the endpoint cannot be
+  used to enumerate accounts.
+- An administrator can no longer deactivate or demote themselves, which would
+  leave an instance with nobody able to manage users.
+- Added CSRF (double-submit) for cookie flows, `TrustedHost` validation, HSTS,
+  `Cache-Control: no-store` on credential responses.
+- **Rate limiting is now credential-keyed** and honours `X-Forwarded-For` only
+  when `TRUST_PROXY_HEADERS` is set — previously every caller behind a proxy
+  shared one bucket, and the header could be spoofed. Login gets a separate,
+  stricter budget.
+
+#### Script sandbox
+- **Python nodes now execute in a separate OS process** with kernel-enforced
+  `RLIMIT_CPU`, `RLIMIT_AS`, `RLIMIT_FSIZE`, `RLIMIT_NPROC` and `RLIMIT_CORE`.
+  This fixes two defects the M4 in-process `exec` could not: `while True: pass`
+  pinned a CPU core for the life of the backend (a thread cannot be cancelled),
+  and a large allocation OOM-killed the whole service.
+- Added a **PEP 578 audit hook**, which is the actual enforcement boundary. The
+  documented `__subclasses__` → `BuiltinImporter.load_module` escape still
+  yields a module reference, but every dangerous operation on it (file open,
+  `system`, `fork`, `kill`, `chmod`, `remove`, sockets, `listdir`) raises an
+  audit event and is refused. Verified post-escape in tests.
+- Scrubbed child environment (no API keys, no `DATABASE_URL`), private temp
+  working directory, import allowlist, network denial, per-execution quota.
+- **Honestly documented as defence in depth, not a security boundary.** The
+  JavaScript node is *not* sandboxed. Script nodes remain disabled by default.
+  See `SECURITY.md` §5.
+
+#### Reliability
+- **Startup validation** refuses to boot an unsafe production configuration
+  (auth disabled, wildcard CORS, placeholder secret, shell executor without an
+  allowlist, SSRF enabled). Warnings only outside production, so local
+  development is unaffected.
+- `/health/ready` now checks the worker pool, queue depth and configuration
+  findings, and returns **503 when degraded** so an orchestrator can act on it.
+
+#### Observability
+- Dependency-free Prometheus registry and `/metrics` exposition. Path labels
+  use the route template and unmatched paths collapse, so metric cardinality
+  stays bounded under scanning.
+- Added `correlation_id` alongside `request_id`, propagated via contextvars.
+- Bounded in-process error aggregation at `/api/system/errors`.
+
+#### Database
+- Migration `d5f3a7c81b64` adds the identity tables and **finally creates
+  `audit_events`**, which had existed as an ORM model since V1.0 with no
+  migration at all — a migration-only deployment started without the table and
+  audit writes failed at runtime (M4 known issue #10).
+- Added a migration test asserting **every ORM table has a migration**, so this
+  class of drift cannot recur. Upgrade → downgrade → re-upgrade is exercised.
+
+#### API
+- Added `/api/v1` versioned routes. The unprefixed `/api` paths remain
+  permanently supported.
+
+#### Frontend
+- **The workflow editor is now actually reachable.** `App.tsx` rendered static
+  placeholder text for the Workflows tab, so the entire M3/M4 editor was
+  unreachable from the running application.
+- Mounting it exposed a latent defect: **20 of the 22 node component files were
+  committed as zero-byte files** in M3/M4. Nothing caught this because the
+  modules were never bundled. All 20 are now implemented, with config fields
+  mirroring the backend node schemas.
+- Added an `ErrorBoundary` per tab panel, so one failing section cannot blank
+  the application.
+- ARIA tabs pattern with arrow/Home/End navigation and roving tabindex.
+- The health check is abortable and retryable and no longer sets state after
+  unmount.
+- Converted type-only imports throughout; `vite build` is now warning-free.
+
+#### Deployment
+- Added backend and frontend Dockerfiles (multi-stage, non-root, healthchecks),
+  `docker-compose.yml` with PostgreSQL and a separate one-shot migration
+  service, nginx config with SSE-safe proxying, `.env.production.example`, and
+  `.dockerignore` for both contexts.
+- Added `psycopg[binary]`: compose specified `postgresql+psycopg://` but the
+  driver was not a dependency, so the documented production database could not
+  actually connect.
+
+#### Documentation
+- Added `SECURITY.md`, `DEPLOYMENT.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`
+  and `M5_GAP_ANALYSIS.md`.
+
+#### Testing
+- **257 new backend tests** (1085 → 1342) and **74 new frontend tests**
+  (105 → 179), covering authentication, authorization, JWT, API keys, CSRF,
+  rate limiting, security headers, the sandbox, startup validation, health
+  probes, metrics, error aggregation and migrations.
+- Sandbox tests include a `TestDocumentedLimitations` class asserting the
+  weaknesses that are *not* fixed, so the documentation cannot silently drift.
+- Fixed the CI workflow's frontend step, which invoked a script that does not
+  exist (`npm run test:run --if-present`) and therefore ran no tests at all.
+
+#### Defects found by the M5 self-audit (and fixed)
+
+Two issues were caught *after* the feature work was written and passing its
+own tests. Both are recorded here because they show what the tests missed.
+
+- **Authorization was only wired into 2 of 9 routers.** The dependency worked
+  and was unit-tested; it simply had not been *applied*. With `AUTH_ENABLED`
+  on, a `viewer` — or an anonymous caller — could still create and delete
+  workflows and projects, register plugins, read the audit log and write
+  forged audit entries. Fixed with router-level defaults that fail closed
+  (`require_method_permission`), plus `TestRouteCoverage`, which walks the live
+  route table and fails if any non-public route lacks an authorization
+  dependency.
+- **Refresh-token rotation had a TOCTOU race.** It read `revoked_at`, decided,
+  then wrote, so eight concurrent rotations of one token produced three valid
+  sessions — which also defeats the replay detection meant to catch exactly
+  that. Replaced with an atomic conditional `UPDATE`. The regression test uses
+  a file-backed database on purpose: the suite's in-memory `StaticPool` shares
+  one connection across threads and hides the race entirely.
+- **`POST /api/enterprise/audit` accepted a client-supplied `user_id`**, making
+  the audit trail forgeable. It now records the authenticated principal.
+
+Audited with no defects found: metrics registry under 8-thread contention,
+error-aggregator bounding, and sandbox file-descriptor/process leaks across 12
+concurrent runs and 4 timeout kills (zero fd delta, zero zombies).
+
+#### Known limitations (unchanged or newly documented)
+- Single-process execution only; the queue is in-memory and is lost on restart.
+  Running more than one replica risks double execution.
+- Rate limiting and SSE fan-out are per-process.
+- RBAC is global; there is no per-workflow ownership or tenancy.
+- The JavaScript node is not sandboxed.
+- Audit coverage is partial (auth and user administration only) and not
+  tamper-evident.
+- The deployment assets have not been executed end to end — no container
+  runtime was available during M5 development.
+- CI has still never run: activating it requires a maintainer to move the
+  workflow into `.github/workflows/` (GitHub App `workflows` permission).
+
 ### Milestone 4 — Execution engine and AI orchestration
 
 Turns the visual editor into an executable platform: a workflow built on the

@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from app.api.dependencies import require_execute, require_read_write
 from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.domain.models.workflow import ExecutionPriority, ExecutionStatus
 from app.domain.repositories.workflow_repository import (
@@ -39,7 +40,10 @@ from app.services.workflow.graph import (
     validate_graph_with_loops,
 )
 
-router = APIRouter(prefix="/workflows", tags=["Workflows"])
+# Router-level authorization. Applies to every route here, including any
+# added later, so a new endpoint cannot ship unprotected by omission.
+# Workflows are content: read to view, write to modify.
+router = APIRouter(prefix="/workflows", tags=["Workflows"], dependencies=[Depends(require_read_write)])
 
 
 # --------------------------------------------------------------------------- #
@@ -435,7 +439,13 @@ def delete_edge(workflow_id: int, edge_id: int, db: Session = Depends(get_db)) -
 # --------------------------------------------------------------------------- #
 # Executions
 # --------------------------------------------------------------------------- #
-@router.post("/{workflow_id}/executions", summary="Create and start an execution")
+@router.post(
+    "/{workflow_id}/executions",
+    summary="Create and start an execution",
+    # Running a workflow is an execute action on top of the router's write
+    # default; both dependencies run and both must pass.
+    dependencies=[Depends(require_execute)],
+)
 async def create_execution(
     workflow_id: int, request: RunRequest | None = None, db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
@@ -541,7 +551,11 @@ def get_execution(execution_id: int, db: Session = Depends(get_db)) -> Dict[str,
     }
 
 
-@router.post("/executions/{execution_id}/cancel", summary="Cancel a running execution")
+@router.post(
+    "/executions/{execution_id}/cancel",
+    summary="Cancel a running execution",
+    dependencies=[Depends(require_execute)],
+)
 def cancel_execution(execution_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
     execution = workflow_execution_repo.get(db, execution_id)
     if not execution:

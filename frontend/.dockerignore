@@ -1,0 +1,10 @@
+node_modules/
+dist/
+dist-electron/
+dist-electron-app/
+coverage/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+src/__tests__/

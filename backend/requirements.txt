@@ -1,3 +1,13 @@
+# Creator OS backend runtime dependencies.
+#
+# Deliberately small: Creator OS ships as a local-first desktop application and
+# must install without a compiler toolchain. Where a well-known library would
+# have added a C extension for a modest amount of code, the functionality is
+# implemented against the standard library instead:
+#   - JWT (HS256)      -> app/services/security/tokens.py   (vs PyJWT)
+#   - password hashing -> app/services/security/passwords.py (vs bcrypt/argon2)
+#   - Prometheus       -> app/infrastructure/observability/  (vs prometheus_client)
+
 fastapi>=0.100.0
 uvicorn>=0.22.0
 pydantic>=2.0.0
@@ -9,7 +19,13 @@ httpx>=0.24.0
 pillow>=10.0.0
 python-multipart>=0.0.9
 
-# Testing
+# PostgreSQL driver. Required for any multi-process or multi-user deployment
+# (docker-compose uses postgresql+psycopg://). SQLite needs no driver, so this
+# is harmless for local desktop installs. The binary wheel avoids needing
+# libpq headers and a compiler at install time.
+psycopg[binary]>=3.1
+
+# --- Testing -----------------------------------------------------------------
 pytest>=7.0.0
 pytest-asyncio>=0.21.0
 pytest-cov>=4.1.0

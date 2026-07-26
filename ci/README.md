@@ -4,7 +4,7 @@
 
 | Job | What it runs |
 | --- | --- |
-| `backend` | `pytest` with coverage (1313 tests) |
+| `backend` | `pytest` with coverage (1342 tests) |
 | `migrations` | Alembic upgrade → downgrade → re-upgrade round trip, and a single-head check |
 | `frontend` | `tsc --noEmit`, `vite build`, `vitest` (179 tests) |
 | `docker` | Builds both production images |

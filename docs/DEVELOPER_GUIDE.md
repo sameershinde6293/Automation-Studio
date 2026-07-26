@@ -97,7 +97,7 @@ the single place that conversion happens — do not inline it elsewhere.
 ## Testing
 
 ```bash
-# Backend — 1085 tests
+# Backend — 1342 tests
 cd backend && .venv/bin/python -m pytest            # full suite
 .venv/bin/python -m pytest tests/m4                 # M4 only
 .venv/bin/python -m pytest --ignore=tests/m4        # pre-M4 regression check

@@ -111,7 +111,7 @@ and verification. Full pre-work audit in `M5_GAP_ANALYSIS.md`.
   and `M5_GAP_ANALYSIS.md`.
 
 #### Testing
-- **228 new backend tests** (1085 → 1313) and **74 new frontend tests**
+- **257 new backend tests** (1085 → 1342) and **74 new frontend tests**
   (105 → 179), covering authentication, authorization, JWT, API keys, CSRF,
   rate limiting, security headers, the sandbox, startup validation, health
   probes, metrics, error aggregation and migrations.
@@ -119,6 +119,32 @@ and verification. Full pre-work audit in `M5_GAP_ANALYSIS.md`.
   weaknesses that are *not* fixed, so the documentation cannot silently drift.
 - Fixed the CI workflow's frontend step, which invoked a script that does not
   exist (`npm run test:run --if-present`) and therefore ran no tests at all.
+
+#### Defects found by the M5 self-audit (and fixed)
+
+Two issues were caught *after* the feature work was written and passing its
+own tests. Both are recorded here because they show what the tests missed.
+
+- **Authorization was only wired into 2 of 9 routers.** The dependency worked
+  and was unit-tested; it simply had not been *applied*. With `AUTH_ENABLED`
+  on, a `viewer` — or an anonymous caller — could still create and delete
+  workflows and projects, register plugins, read the audit log and write
+  forged audit entries. Fixed with router-level defaults that fail closed
+  (`require_method_permission`), plus `TestRouteCoverage`, which walks the live
+  route table and fails if any non-public route lacks an authorization
+  dependency.
+- **Refresh-token rotation had a TOCTOU race.** It read `revoked_at`, decided,
+  then wrote, so eight concurrent rotations of one token produced three valid
+  sessions — which also defeats the replay detection meant to catch exactly
+  that. Replaced with an atomic conditional `UPDATE`. The regression test uses
+  a file-backed database on purpose: the suite's in-memory `StaticPool` shares
+  one connection across threads and hides the race entirely.
+- **`POST /api/enterprise/audit` accepted a client-supplied `user_id`**, making
+  the audit trail forgeable. It now records the authenticated principal.
+
+Audited with no defects found: metrics registry under 8-thread contention,
+error-aggregator bounding, and sandbox file-descriptor/process leaks across 12
+concurrent runs and 4 timeout kills (zero fd delta, zero zombies).
 
 #### Known limitations (unchanged or newly documented)
 - Single-process execution only; the queue is in-memory and is lost on restart.

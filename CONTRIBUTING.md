@@ -51,7 +51,7 @@ All of these must pass:
 ```bash
 # Backend
 cd backend
-./.venv/bin/python -m pytest                 # 1313 tests, all green
+./.venv/bin/python -m pytest                 # 1342 tests, all green
 ./.venv/bin/ruff check app                   # linting
 
 # Frontend

@@ -81,6 +81,26 @@ Four roles, defined once in `app/services/enterprise/auth.py`:
 Enforced by FastAPI dependencies in `app/api/dependencies.py`
 (`require_read`, `require_write`, `require_execute`, `require_manage_users`, …).
 
+Authorization is applied **at router level** via
+`APIRouter(dependencies=[...])` rather than per endpoint:
+
+| Router | Safe methods | Mutations |
+| --- | --- | --- |
+| workflows, projects, ai, media | `read` | `write` |
+| executions | `read` | `execute` |
+| plugins | `read` | `manage_plugins` |
+| enterprise | per route: `view_audit` to read the log, `manage_settings` to write |
+
+Triggering or cancelling a workflow run additionally requires `execute`.
+
+This is deliberate and fails closed. The M5 self-audit found that annotating
+endpoints individually had left **7 of 9 routers entirely unprotected** — an
+endpoint without a decorator is silently public and nothing flags it. A
+router-level default protects a new route the moment it is added, and
+`tests/m5/test_endpoint_authorization_m5.py::TestRouteCoverage` walks the live
+route table and fails if any non-public route lacks an authorization
+dependency.
+
 **Before M5 this model was decorative** — `require_permission` existed but no
 route ever called it. That is the specific regression the tests in
 `tests/m5/test_authorization_m5.py` exist to prevent.
@@ -242,9 +262,10 @@ actor, timestamp and context.
 ### Known weaknesses
 - **Coverage is partial.** Auth and user administration are audited; workflow
   and media mutations are **not** yet.
-- `POST /api/enterprise/audit` still accepts a caller-supplied `user_id`. It is
-  intended for first-party instrumentation; do not treat entries written
-  through it as trustworthy attribution.
+- `POST /api/enterprise/audit` records the **authenticated principal** as the
+  actor and requires `manage_settings`. A caller-supplied `user_id` is retained
+  only as `details.subject_user_id`, so the trail cannot be forged. (Before M5
+  this endpoint was unauthenticated and took the actor from the request body.)
 - Audit rows are **not tamper-evident** — no hash chain or signing. An
   administrator with database access can alter history.
 

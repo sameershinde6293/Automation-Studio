@@ -23,7 +23,7 @@
 | --- | --- | --- | --- |
 | Backend build | ✅ | ✅ | ✅ |
 | Frontend build | ❌ broken (TS1005) | ✅ | ✅ **warning-free** |
-| Backend tests | 19 passed / 1 failed | 1085 passed | **1313 passed / 0 failed** |
+| Backend tests | 19 passed / 1 failed | 1085 passed | **1342 passed / 0 failed** |
 | Backend coverage | 82% | not re-measured | **89%** (re-measured this milestone) |
 | Frontend tests | none | 105 passed | **179 passed / 0 failed** |
 | Frontend typecheck | ❌ broken | ✅ | ✅ |
@@ -70,7 +70,7 @@ because they were never bundled. All 20 are implemented and tested.
 
 | Check | Result |
 | --- | --- |
-| Backend tests | 1313 passed (1085 pre-existing, unmodified + 228 new) |
+| Backend tests | 1342 passed (1085 pre-existing + 257 new M5) |
 | Backend coverage | 89% |
 | Frontend tests | 179 passed (105 pre-existing + 74 new) |
 | Frontend typecheck | `tsc --noEmit` clean |

@@ -29,6 +29,9 @@
 | Issue | Severity | Resolution |
 | --- | --- | --- |
 | No authentication on any API endpoint | Critical | Users, API keys, refresh sessions, JWT auth (M5) |
+| Authorization applied to only 2 of 9 routers — a viewer or anonymous caller could create/delete workflows, register plugins and forge audit entries | Critical | Found by the M5 self-audit. Router-level fail-closed defaults, plus a route-table coverage test (M5) |
+| Refresh-token rotation had a TOCTOU race: one token could yield several valid sessions | High | Found by the M5 self-audit. Atomic conditional UPDATE (M5) |
+| `POST /api/enterprise/audit` took the actor from a client-supplied `user_id`, so the audit trail was forgeable | High | Records the authenticated principal; requires `manage_settings` (M5) |
 | RBAC defined but never enforced anywhere | Critical | `require_permission` dependencies applied per endpoint (M5) |
 | Script nodes could pin a CPU core indefinitely | Critical | `RLIMIT_CPU` in a child process; a thread could not be cancelled (M5) |
 | Script nodes could OOM-kill the whole backend | Critical | `RLIMIT_AS` (M5) |

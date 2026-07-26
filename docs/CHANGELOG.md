@@ -2,6 +2,112 @@
 
 ## [1.1.0] - 2026-07-26 (in progress)
 
+### Milestone 4 — Execution engine and AI orchestration
+
+Turns the visual editor into an executable platform: a workflow built on the
+canvas now runs end to end with live feedback.
+
+#### Workflow execution engine
+- Added `run_execution_v2`: branch gating, bounded loops, pause/resume/stop,
+  run variables, live streaming and per-node metrics. The M1 `run_execution`
+  is preserved verbatim, so the pre-M4 code path and its tests are unchanged.
+- **Conditional branching now works.** The engine previously ignored branch
+  results and `Edge.label` entirely, executing *both* sides of every condition.
+  It now follows only matching labels and cascades suppression to descendants
+  that lose all inbound paths.
+- **Loops.** A cycle is legal when its closing edge is labelled `loop`; those
+  edges are excluded from dependency ordering so the schedulable graph stays a
+  DAG. Any other cycle is still rejected. Iteration is capped three ways.
+- **Pause / resume / graceful stop.** `ExecutionStatus.PAUSED` existed since
+  V1.0 but nothing ever set or honoured it. Added `ControlHandle` with
+  thread-safe requests and loop-affine waiting.
+- **Bounded priority queue and worker pool** replace unbounded
+  `asyncio.create_task`. Over capacity returns HTTP 429 instead of degrading
+  the process. Priorities: critical/high/normal/low, FIFO within a band.
+- Engine-level aborts (wall-clock timeout, node-execution cap) now fail the run.
+  An earlier build reported COMPLETED while recording an error.
+
+#### Node execution
+- Added a unified node runtime: declarative input/output schemas, coercion
+  (every editor input arrives as a string), validation, metrics and a stable
+  error taxonomy. Validation/permission errors are **non-retryable**, so a bad
+  config fails in one attempt instead of three.
+- **Added all 23 editor node types.** The M3 palette exposed 22 types while the
+  backend implemented 10 *different* ones — the intersection was `{delay}`, so
+  saving any editor-built workflow returned HTTP 422. 83 names including
+  snake_case aliases; pre-existing M1 types keep their original executors.
+- Node outputs are truncated at `EXECUTION_MAX_OUTPUT_BYTES`; non-serialisable
+  outputs are replaced with an explicit marker rather than failing at the DB.
+
+#### Real-time execution
+- Added `ExecutionBroker` with per-execution fan-out, **bounded drop-oldest**
+  subscriber queues (a slow client cannot stall the engine), a replay buffer for
+  reconnects and batched log writes.
+- Added SSE `GET /api/executions/{id}/stream` plus a polling fallback.
+- Added durable `workflow_execution_logs` with sequencing, level and node
+  attribution.
+
+#### AI orchestration
+- Added `orchestrator.generate()` with a provider fallback chain.
+- **Wired up the circuit breaker** — `AI_CIRCUIT_BREAKER_*` had existed since M1
+  but was never used. CLOSED → OPEN → HALF_OPEN probe.
+- Added a cost model, token accounting, execution tracing, prompt templating and
+  registration hooks for image/TTS/STT providers.
+- Fixed `_provider_available` hardcoding provider names, which silently dropped
+  runtime-registered providers from the fallback chain.
+
+#### Execution history
+- Added global search/filter (workflow, status, trigger, date, text), replay,
+  resume-failed, timelines, lineage and aggregate stats.
+- Resume-failed seeds completed node outputs into the new run. **It re-traverses
+  the graph**, so it is a retry with context, not mid-graph resumption.
+
+#### Frontend
+- Added run/pause/resume/stop/cancel/replay controls, live node status, a
+  progress bar, a streaming log viewer (level filter, search, auto-scroll) and
+  an execution history panel with replay actions.
+- Replaced the M3 `ExecutionPanel` placeholder, which ran an empty
+  `setInterval` and rendered state nothing ever populated.
+- **Fixed the graph save contract (the editor could never save).** The editor
+  sent `{id: uuid-string, type, position, data}`; the backend expected
+  `{id: int, node_type, position_x, source_id}`. Every save returned 422. Added
+  `graphAdapter.ts` as the single conversion point, which also carries React
+  Flow's `sourceHandle` through as the edge branch label.
+- **Fixed undo/redo, which never worked.** History started empty at index -1, so
+  the first edit could never be undone.
+
+#### Testing
+- Backend: **825 → 1085** tests (260 new), all passing.
+- Frontend: **0 → 105** runnable tests. M3 committed five vitest files but the
+  project had no runner, no jsdom and no `test` script, so none could execute;
+  vitest + jsdom + testing-library are now configured and those files run.
+
+#### Performance
+- Node persistence reduced from 4 transactions per node to 1 per outcome.
+- Graph load reduced from 4 sessions to 1.
+- Batched log writes; composite indices on `(workflow_id, status)` and
+  `(status, priority, id)`.
+- Admission control replaces unbounded task creation.
+
+#### Fixed (found by the new tests)
+- SSE endpoint hung forever when an execution had already finished: the
+  backfilled terminal event was replayed but never inspected.
+- `PUT /graph` rejected valid loop workflows (loop-unaware validator).
+- `/node-schemas` hid canonical types behind alphabetically-earlier aliases.
+- `classify_exception` mislabelled `RuntimeError`/`IndexError`/`AttributeError`.
+- Worker pool started lazily inside request scope, leaking long-lived tasks.
+- Circular import between `runtime` and `executors` silently disabled the whole
+  M4 node library depending on import order.
+
+#### Known limitations
+- Single-process only; the in-memory queue is lost on restart.
+- `python`/`javascript` nodes are restricted interpreters, **not** sandboxes,
+  and are disabled by default.
+- Resume-failed re-traverses the graph.
+- The engine's global write lock still serialises status writes across runs.
+- No inbound webhook triggers; no image/TTS/STT providers ship by default.
+
+
 ### Milestone 2 — Service completion: AI runtime and media pipeline
 
 #### AI Runtime

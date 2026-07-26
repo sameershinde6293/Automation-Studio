@@ -6,6 +6,8 @@ from app.domain.repositories.ai.ai_repository import (
 )
 from app.services.ai.providers.base import BaseAIProvider
 from app.services.ai.providers.mock_provider import MockAIProvider
+from app.services.ai.providers.openai_provider import OpenAIProvider
+from app.services.ai.providers.local_provider import OllamaProvider
 import logging
 
 logger = logging.getLogger("creator_os.ai")
@@ -14,8 +16,8 @@ class AIOrchestrator:
     def __init__(self):
         self.providers: Dict[str, BaseAIProvider] = {
             "mock": MockAIProvider(),
-            "openai": MockAIProvider(), # Abstracted for now
-            "local": MockAIProvider()   # Abstracted for now
+            "openai": OpenAIProvider(), # Abstracted for now
+            "local": OllamaProvider()   # Abstracted for now
         }
         self._loaded_models = set()
 

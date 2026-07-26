@@ -8,10 +8,19 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from app.api.dependencies import (
+    require_authenticated,
+    require_manage_settings,
+    require_view_audit,
+)
 from app.domain.models.enterprise import AuditEvent
 from app.infrastructure.database.database import get_db
 from app.services.enterprise.auth import enterprise_auth
+from app.services.security.principal import Principal
 
+# Authorization here is per-route rather than router-wide: reading the audit
+# log, writing to it and introspecting the role model are three different
+# privileges. Every route still carries one, so nothing is anonymous.
 router = APIRouter(prefix="/enterprise", tags=["Enterprise"])
 
 
@@ -27,12 +36,17 @@ class AuditEventCreate(BaseModel):
 
 
 @router.get("/roles", summary="List roles and their permissions")
-def list_roles() -> Dict[str, List[str]]:
+def list_roles(
+    _: Principal = Depends(require_authenticated),
+) -> Dict[str, List[str]]:
     return enterprise_auth.roles()
 
 
 @router.post("/permissions/check", summary="Check a role/permission pair")
-def check_permission(payload: PermissionCheck) -> Dict[str, Any]:
+def check_permission(
+    payload: PermissionCheck,
+    _: Principal = Depends(require_authenticated),
+) -> Dict[str, Any]:
     allowed = enterprise_auth.check_permissions(payload.role, payload.permission)
     return {
         "role": payload.role,
@@ -47,6 +61,7 @@ def list_audit_events(
     limit: int = Query(100, ge=1, le=500),
     event_name: str = Query("", description="Optional exact event name filter"),
     user_id: Optional[int] = Query(None),
+    _: Principal = Depends(require_view_audit),
     db: Session = Depends(get_db),
 ) -> List[Dict[str, Any]]:
     query = db.query(AuditEvent)
@@ -68,8 +83,22 @@ def list_audit_events(
 
 
 @router.post("/audit", summary="Record an audit event", status_code=201)
-def create_audit_event(payload: AuditEventCreate) -> Dict[str, Any]:
+def create_audit_event(
+    payload: AuditEventCreate,
+    principal: Principal = Depends(require_manage_settings),
+) -> Dict[str, Any]:
+    """Record a first-party audit event.
+
+    The actor is taken from the authenticated principal, **not** from the
+    request body. The M5 audit flagged that this endpoint accepted a
+    caller-supplied ``user_id``, which made the audit trail forgeable by
+    anyone who could reach the API. ``payload.user_id`` is now retained only
+    as a subject reference inside ``details``.
+    """
+    details = dict(payload.details or {})
+    if payload.user_id:
+        details.setdefault("subject_user_id", payload.user_id)
     ok = enterprise_auth.log_audit_event(
-        payload.event_name, payload.user_id, payload.details or {}
+        payload.event_name, principal.user_id or 0, details
     )
     return {"recorded": ok, "event_name": payload.event_name}

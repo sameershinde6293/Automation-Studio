@@ -8,6 +8,7 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.api.dependencies import require_read_write
 from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.domain.models.ai.models import TokenUsage
 from app.domain.repositories.ai.ai_repository import (
@@ -24,7 +25,10 @@ from app.domain.repositories.ai.ai_repository import (
 from app.infrastructure.database.database import get_db
 from app.services.ai.orchestrator import ai_orchestrator
 
-router = APIRouter(prefix="/ai", tags=["AI"])
+# Router-level authorization. Applies to every route here, including any
+# added later, so a new endpoint cannot ship unprotected by omission.
+# AI models and conversations are content.
+router = APIRouter(prefix="/ai", tags=["AI"], dependencies=[Depends(require_read_write)])
 
 
 class ChatRequest(BaseModel):

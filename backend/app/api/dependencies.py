@@ -143,6 +143,66 @@ require_manage_settings = require_permission(PERM_MANAGE_SETTINGS)
 require_view_audit = require_permission(PERM_VIEW_AUDIT)
 
 
+#: HTTP methods that only read state.
+SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+
+
+def require_method_permission(
+    *,
+    read: str = PERM_READ,
+    write: str = PERM_WRITE,
+) -> Callable[..., Principal]:
+    """Build a router-level dependency that picks a permission by HTTP method.
+
+    Applied with ``APIRouter(dependencies=[...])`` so it covers **every** route
+    on a router, including ones added later. This is deliberate: the M5
+    self-audit found that annotating endpoints individually had left 7 of 9
+    routers completely unprotected, which let a ``viewer`` create and delete
+    workflows, register plugins and write audit events. A router-level default
+    fails closed — a new endpoint is protected the moment it is added, rather
+    than whenever someone remembers to annotate it.
+
+    Individual routes can still tighten this (for example an execution trigger
+    requiring ``execute``) by declaring their own dependency; both run, and
+    both must pass.
+    """
+
+    def dependency(
+        request: Request,
+        principal: Principal = Depends(get_principal),
+    ) -> Principal:
+        permission = read if request.method in SAFE_METHODS else write
+        if principal.is_anonymous:
+            raise UnauthorizedError(
+                "Authentication is required for this endpoint.",
+                details={"required_permission": permission},
+            )
+        if not principal.has_permission(permission):
+            raise ForbiddenError(
+                f"Role {principal.role!r} lacks the {permission!r} permission.",
+                details={
+                    "role": principal.role,
+                    "required_permission": permission,
+                    "granted": sorted(principal.permissions),
+                },
+            )
+        return principal
+
+    dependency.__name__ = f"require_{read}_or_{write}"
+    return dependency
+
+
+#: Read on safe methods, write on mutations. The default for resource routers.
+require_read_write = require_method_permission()
+
+#: Read on safe methods, execute on mutations. For control surfaces such as
+#: pausing or replaying a run, which are not content edits.
+require_read_execute = require_method_permission(write=PERM_EXECUTE)
+
+#: Read on safe methods, manage_plugins on mutations.
+require_read_manage_plugins = require_method_permission(write=PERM_MANAGE_PLUGINS)
+
+
 def require_self_or_manage_users(
     user_id: int,
     principal: Principal = Depends(get_principal),

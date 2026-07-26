@@ -533,6 +533,22 @@ class TestEnterpriseEndpoints:
         assert len(api_client.get("/api/enterprise/audit?event_name=a").json()) == 1
 
     def test_audit_filter_by_user(self, api_client):
+        """The user_id filter still works, keyed on the *authenticated* actor.
+
+        Updated in M5. This test previously posted ``user_id: 5`` and ``6`` and
+        asserted the rows came back under those ids — i.e. it encoded the fact
+        that any caller could attribute an audit entry to an arbitrary user.
+        The endpoint now records the authenticated principal instead, so the
+        filter is exercised against the real actor. With ``AUTH_ENABLED`` false
+        (this fixture) that actor is the local admin, id 0.
+        """
         api_client.post("/api/enterprise/audit", json={"event_name": "a", "user_id": 5})
         api_client.post("/api/enterprise/audit", json={"event_name": "b", "user_id": 6})
-        assert len(api_client.get("/api/enterprise/audit?user_id=5").json()) == 1
+
+        actor_events = api_client.get("/api/enterprise/audit?user_id=0").json()
+        assert len(actor_events) == 2
+
+        # The client-supplied id is kept as a subject reference, never as the
+        # actor, so it cannot be used to forge attribution.
+        assert actor_events[0]["details"]["subject_user_id"] in {5, 6}
+        assert api_client.get("/api/enterprise/audit?user_id=5").json() == []

@@ -16,6 +16,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from app.api.dependencies import require_read_execute
 from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.domain.models.workflow import ExecutionStatus
 from app.domain.repositories.workflow_repository import workflow_execution_repo
@@ -26,7 +27,10 @@ from app.services.workflow.engine import workflow_engine
 from app.services.workflow.history import execution_history
 from app.services.workflow.streaming import execution_broker, format_sse
 
-router = APIRouter(prefix="/executions", tags=["Executions"])
+# Router-level authorization. Applies to every route here, including any
+# added later, so a new endpoint cannot ship unprotected by omission.
+# Execution control is an operator action, not a content edit.
+router = APIRouter(prefix="/executions", tags=["Executions"], dependencies=[Depends(require_read_execute)])
 
 
 # --------------------------------------------------------------------------- #

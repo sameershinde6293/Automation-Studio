@@ -6,18 +6,19 @@ from app.api.routers import workflow_router, ai_router, media_router, project_ro
 
 app = FastAPI(title=settings.APP_NAME, version=settings.VERSION)
 
+# Restrict CORS to local development and local desktop origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "app://.", "file://"],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
+app.include_router(project_router.router, prefix="/api")
 app.include_router(workflow_router.router, prefix="/api")
 app.include_router(ai_router.router, prefix="/api")
 app.include_router(media_router.router, prefix="/api")
-app.include_router(project_router.router, prefix="/api")
 
 @app.on_event("startup")
 async def startup_event():

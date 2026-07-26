@@ -6,13 +6,18 @@ import os
 import platform
 import sys
 import time
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 
+from app.api.dependencies import require_manage_settings, require_view_audit
+from app.core.startup import validate_settings
 from app.infrastructure.config.settings import settings
 from app.infrastructure.events.event_bus import event_bus
+from app.infrastructure.observability.errors import error_aggregator
 from app.infrastructure.scheduler.job_scheduler import job_scheduler
+from app.services.security.principal import Principal
+from app.services.security.sandbox import sandbox_status
 from app.services.workflow.executors import executor_registry
 from app.version import __version__
 
@@ -32,9 +37,52 @@ def system_info() -> Dict[str, Any]:
         "uptime_seconds": round(time.time() - _PROCESS_START, 2),
         "features": {
             "shell_executor": settings.ALLOW_SHELL_EXECUTOR,
+            "python_executor": settings.ALLOW_PYTHON_EXECUTOR,
+            "javascript_executor": settings.ALLOW_JAVASCRIPT_EXECUTOR,
+            "database_executor": settings.ALLOW_DATABASE_EXECUTOR,
             "docs": settings.ENABLE_DOCS,
             "rate_limit": settings.RATE_LIMIT_ENABLED,
+            "auth": settings.AUTH_ENABLED,
+            "metrics": settings.METRICS_ENABLED,
         },
+        "script_sandbox": sandbox_status(),
+    }
+
+
+@router.get("/config/validation", summary="Startup configuration findings")
+def config_validation(
+    _: Principal = Depends(require_manage_settings),
+) -> Dict[str, Any]:
+    """Re-run the startup configuration checks against the live settings.
+
+    Requires ``manage_settings``: the findings describe exactly how this
+    deployment is misconfigured, which is not information to hand out freely.
+    """
+    findings = validate_settings(settings)
+    return {
+        "findings": [f.as_dict() for f in findings],
+        "error_count": sum(1 for f in findings if f.severity == "error"),
+        "warning_count": sum(1 for f in findings if f.severity == "warning"),
+        "environment": settings.ENVIRONMENT,
+    }
+
+
+@router.get("/errors", summary="Aggregated recent errors")
+def recent_errors(
+    limit: int = Query(20, ge=1, le=100),
+    since_seconds: Optional[float] = Query(
+        None, ge=1, description="Only groups active within this window"
+    ),
+    _: Principal = Depends(require_view_audit),
+) -> Dict[str, Any]:
+    """Top error groups by frequency.
+
+    In-process and bounded, so it is lost on restart and does not aggregate
+    across replicas; see docs/SECURITY.md for the limitation.
+    """
+    return {
+        "summary": error_aggregator.summary(),
+        "groups": error_aggregator.top(limit=limit, since_seconds=since_seconds),
     }
 
 

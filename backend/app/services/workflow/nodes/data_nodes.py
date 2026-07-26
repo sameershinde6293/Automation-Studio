@@ -2,14 +2,20 @@
 
 Security posture (read this before enabling anything here)
 ----------------------------------------------------------
-The ``python`` and ``javascript`` nodes execute user-supplied code. They are
-**restricted interpreters, not sandboxes**:
+The ``python`` and ``javascript`` nodes execute user-supplied code.
 
-* ``python`` runs through ``exec`` with a stripped ``__builtins__`` mapping and
-  no import machinery. This blocks casual misuse but is *not* a security
-  boundary — a determined attacker can escape restricted-``exec`` sandboxes.
-* ``javascript`` shells out to a local Node.js binary with no isolation beyond
-  a timeout and the OS user's own permissions.
+* ``python`` (M5) runs in a **separate OS process** with POSIX resource limits
+  (``RLIMIT_CPU``, ``RLIMIT_AS``, ``RLIMIT_FSIZE``, ``RLIMIT_NPROC``), a
+  scrubbed environment, a private temp working directory, an import allowlist
+  and a PEP 578 audit hook that refuses file, process, network and dynamic-code
+  operations. See ``app.services.security.sandbox``. This is a substantial
+  hardening over the pre-M5 in-process ``exec``: a CPU-bound infinite loop and
+  a memory bomb are now contained by the kernel rather than taking down the
+  backend. It is **defence in depth, not a security boundary** — a CPython
+  escape still yields the backend user's OS privileges.
+* ``javascript`` shells out to a local Node.js binary with **no isolation**
+  beyond a timeout and the OS user's own permissions. It has not been
+  sandboxed in M5; see docs/SECURITY.md.
 
 Both are therefore **disabled by default** (``ALLOW_PYTHON_EXECUTOR`` /
 ``ALLOW_JAVASCRIPT_EXECUTOR``) and must only be enabled when every workflow
@@ -68,14 +74,32 @@ SAFE_BUILTINS: Dict[str, Any] = {
 #: Modules injected as pre-imported names (no import statement is possible).
 SAFE_MODULES = {"json": json, "math": math, "re": re}
 
+#: Source-level pre-checks, applied before the script is handed to the sandbox.
+#:
+#: These are a *usability and defence-in-depth* layer, not the security
+#: boundary: a blocklist over source text is trivially bypassable
+#: (``getattr`` spelled ``__getattr''__`` and so on). Their real value is that
+#: an obviously dangerous snippet fails immediately, with a precise reason,
+#: instead of spawning a process and failing opaquely 30ms later.
+#:
+#: The M5 sandbox is what actually enforces the policy at runtime, via an
+#: import allowlist and a PEP 578 audit hook. ``import`` is therefore no longer
+#: rejected here — the sandbox permits a curated module list, which is strictly
+#: more useful and no less safe.
 _FORBIDDEN_PATTERNS = (
-    (re.compile(r"\bimport\b"), "import statements are not allowed"),
     (re.compile(r"__\w+__"), "dunder access is not allowed"),
     (re.compile(r"\bopen\s*\("), "file access is not allowed"),
     (re.compile(r"\b(eval|exec|compile)\s*\("), "dynamic evaluation is not allowed"),
     (re.compile(r"\bglobals\s*\(|\blocals\s*\(|\bvars\s*\("), "scope introspection is not allowed"),
     (re.compile(r"\bgetattr\s*\(|\bsetattr\s*\(|\bdelattr\s*\("), "attribute reflection is not allowed"),
     (re.compile(r"\bsubprocess\b|\bos\s*\.|\bsys\s*\."), "system access is not allowed"),
+)
+
+#: Applied only on the legacy in-process path, which has no import machinery at
+#: all and so must reject imports outright.
+_LEGACY_IMPORT_PATTERN = (
+    re.compile(r"\bimport\b"),
+    "import statements are not allowed",
 )
 
 
@@ -85,8 +109,9 @@ class PythonNode(RuntimeNodeExecutor):
     label = "Python"
     category = "script"
     description = (
-        "Executes a restricted Python snippet (no imports, no file/system "
-        "access). NOT a security sandbox - disabled by default."
+        "Executes a Python snippet in a resource-limited child process "
+        "(CPU, memory and filesystem limits; import allowlist; no network). "
+        "Hardened but not a full security boundary - disabled by default."
     )
     aliases = ("python_node", "python_script")
     requires_flag = "ALLOW_PYTHON_EXECUTOR"
@@ -111,8 +136,17 @@ class PythonNode(RuntimeNodeExecutor):
     )
 
     @staticmethod
-    def _reject_forbidden(code: str) -> None:
-        for pattern, reason in _FORBIDDEN_PATTERNS:
+    def _reject_forbidden(code: str, *, include_imports: bool = False) -> None:
+        """Fast source-level rejection of obviously dangerous snippets.
+
+        ``include_imports`` is set on the legacy in-process path, which cannot
+        support imports at all. The sandboxed path leaves import policy to the
+        sandbox's allowlist.
+        """
+        patterns = _FORBIDDEN_PATTERNS
+        if include_imports:
+            patterns = patterns + (_LEGACY_IMPORT_PATTERN,)
+        for pattern, reason in patterns:
             if pattern.search(code):
                 raise SecurityError(
                     f"Python node rejected: {reason}.",
@@ -145,11 +179,92 @@ class PythonNode(RuntimeNodeExecutor):
             "variables": public,
         }
 
+    async def _run_sandboxed(
+        self, code: str, bound: Dict[str, Any], timeout: float
+    ) -> Dict[str, Any]:
+        """Execute in a resource-limited child process (M5, the default path)."""
+        from app.services.security.sandbox import (
+            SandboxLimits,
+            run_python_sandboxed,
+        )
+
+        limits = SandboxLimits.from_settings(settings, wall_timeout=timeout)
+        outcome = await asyncio.to_thread(
+            run_python_sandboxed, code, bound, limits
+        )
+
+        if outcome.ok:
+            return {
+                "result": outcome.result,
+                "stdout": outcome.stdout,
+                "variables": outcome.variables,
+            }
+
+        if outcome.timed_out:
+            raise NodeExecutionError(
+                f"Python node timed out after {timeout}s.",
+                code=NodeErrorCode.TIMEOUT,
+                details={"stdout": outcome.stdout[:2000]},
+            )
+        if outcome.killed_by_limit:
+            raise NodeExecutionError(
+                outcome.error
+                or "Python node exceeded its CPU or memory limit.",
+                code=NodeErrorCode.RUNTIME,
+                details={
+                    "limit": "cpu_or_memory",
+                    "cpu_seconds": limits.cpu_seconds,
+                    "memory_mb": limits.memory_mb,
+                },
+            )
+        if outcome.error_type in {"PermissionError", "ImportError"}:
+            # The sandbox refused a restricted operation. This is a policy
+            # violation, not a transient fault, so it must not be retried.
+            raise SecurityError(
+                outcome.error or "Operation blocked by the script sandbox.",
+                details={"error_type": outcome.error_type},
+            )
+        if outcome.error_type == "SyntaxError":
+            raise ValidationError(outcome.error or "Python node has a syntax error.")
+
+        raise NodeExecutionError(
+            outcome.error or "Python node failed.",
+            code=NodeErrorCode.RUNTIME,
+            details={
+                "error_type": outcome.error_type,
+                "stdout": outcome.stdout[:2000],
+            },
+        )
+
+    @staticmethod
+    def _check_quota(context: Any) -> None:
+        """Enforce the per-execution script invocation quota.
+
+        Without this, a loop node wrapping a script node could spawn an
+        unbounded number of sandbox processes in a single run.
+        """
+        quota = int(getattr(settings, "SCRIPT_EXECUTION_QUOTA_PER_RUN", 0) or 0)
+        if quota <= 0 or not isinstance(context, dict):
+            return
+        used = int(context.get("__script_invocations__", 0)) + 1
+        context["__script_invocations__"] = used
+        if used > quota:
+            raise SecurityError(
+                f"Script execution quota exceeded: {quota} script node runs "
+                "are permitted per workflow execution.",
+                details={"quota": quota, "used": used},
+            )
+
     async def run(self, node, context, config) -> Any:
         code = str(config.get("code") or "")
         if not code.strip():
             raise ValidationError("Python node requires non-empty 'code'.")
+
+        # Fast source-level pre-check (see _FORBIDDEN_PATTERNS). Runs on both
+        # paths so an obviously dangerous snippet is refused before a process
+        # is spawned, and so the SecurityError contract is identical either way.
         self._reject_forbidden(code)
+        self._check_quota(context)
 
         bound = render_value(config.get("inputs") or {}, context)
         if not isinstance(bound, dict):
@@ -162,6 +277,20 @@ class PythonNode(RuntimeNodeExecutor):
         )
         timeout = max(1.0, min(timeout, 300.0))
 
+        # M5: prefer the process sandbox. It enforces CPU and memory limits the
+        # in-process path cannot: `while True: pass` used to pin a core for the
+        # life of the backend because a thread cannot be cancelled, and a large
+        # allocation could OOM the whole service.
+        from app.services.security.sandbox import sandbox_available
+
+        if settings.SCRIPT_SANDBOX_ENABLED and sandbox_available():
+            return await self._run_sandboxed(code, bound, timeout)
+
+        # Fallback: restricted in-process exec (pre-M5 behaviour). Only reached
+        # when the sandbox is explicitly disabled or the platform lacks POSIX
+        # resource limits. The source-level blocklist applies here only, since
+        # it is all this path has.
+        self._reject_forbidden(code, include_imports=True)
         try:
             return await asyncio.wait_for(
                 asyncio.to_thread(self._execute_sync, code, bound), timeout=timeout

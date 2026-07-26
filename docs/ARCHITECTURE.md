@@ -1,6 +1,26 @@
 # Architecture
 
-Creator OS v1.1 · last updated 2026-07-26 (M5)
+Creator OS v1.1 · last updated 2026-07-26 (M6)
+
+> **M6 measured characteristics.** The architecture below is unchanged by M6,
+> but its runtime behaviour has now been measured rather than assumed:
+>
+> * **Request concurrency is bounded by database-pool capacity**, not CPU.
+>   Every in-flight request holds a connection for its whole handler lifetime,
+>   so capacity (`DB_POOL_SIZE + DB_MAX_OVERFLOW`, default 80) is the real
+>   concurrency ceiling — roughly 100 concurrent authenticated requests per
+>   instance at 0% error. Beyond it, load is shed as `503` + `Retry-After`.
+> * **The process is single-instance by design.** The execution queue, rate
+>   limiter, SSE broker and error aggregator all hold state in process memory.
+>   Running multiple workers multiplies the rate limit (measured: 3x at four
+>   workers) and gives each worker its own queue. The APScheduler jobstore is
+>   the one shared-state component and is safe across processes.
+> * **Recovery is automatic.** With `pool_pre_ping` and the readiness gate, a
+>   database outage takes the instance out of rotation and it returns ~1 s
+>   after the database comes back, with no restart.
+>
+> See `M6_VALIDATION_REPORT.md` for the measurements and
+> `KNOWN_ISSUES.md` for the scaling limits this implies.
 
 ---
 

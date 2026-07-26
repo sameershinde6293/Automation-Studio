@@ -1,11 +1,25 @@
 # Known Issues
 
-## M5 (production hardening) — current
+## M6 (production validation) — current
+
+M6 executed the M5 deployment path for the first time against real PostgreSQL
+and a real production-configured server. Six defects were found; five are
+fixed (see `M6_VALIDATION_REPORT.md`). What remains open is below.
+
+| # | Issue | Impact | Workaround |
+| --- | --- | --- | --- |
+| M6-1 | **Docker still never executed** | Image build and `docker compose up` remain unverified — no container runtime was available in M5 *or* M6. M6 did reproduce the container's runtime contract outside a container (same Postgres, production settings, Uvicorn command line and probes), which is how the M6-F1 boot failure was found | Treat the first real deployment as a validation exercise. Everything the container would run has been verified outside it |
+| M6-2 | Concurrency ceiling ≈ DB pool capacity | Each in-flight request holds a connection for its whole lifetime, so ~100 concurrent authenticated requests per instance at the default 80. Excess is shed as `503` + `Retry-After` — correct, but a ceiling | Raise `DB_POOL_SIZE`/`DB_MAX_OVERFLOW`, keeping capacity x replicas under PostgreSQL `max_connections`. Measured curve in `M6_VALIDATION_REPORT.md` §4.3 |
+| M6-3 | SSE `cleanup()` can drop a concurrent subscriber's replay buffer (M6-F5) | Two clients disconnecting in the same scheduling window can cost the second its reconnect backfill. **Not** data loss — `flush_logs` runs first, so persisted logs are intact | Reconnect without `after_sequence` to re-read from the database. Deliberately not fixed in M6: the correct fix is broker refcounting, and rewriting working concurrency code for a benign rare race is out of scope |
+| M6-4 | **Two timing-sensitive tests can flake under full-suite CPU contention** — `tests/m2/...::test_process_returns_202_and_progress_can_be_polled` (polls an async media job for ≤0.8 s) and `tests/m4/...::test_pause_then_resume_completes` (3 s `wait_for` budgets around real sleeps) | Observed **1 failure across ~9 full-suite runs**, never the same test twice. Neither reproduces in isolation (0/6 and 0/5 targeted runs). Confirmed **not caused by M6**: the pristine M5 commit `a92af1b` was re-run and the M4 path uses in-memory SQLite, which takes no pool settings, so the M6-F6 change cannot reach it. Running `tests/m6/` before `tests/m4/` also showed no interference | Re-run the file in isolation. A durable fix means replacing wall-clock budgets with deterministic synchronisation — deliberately out of M6 scope, since editing working tests to chase a scheduling artifact risks masking a real regression |
+| M6-5 | PostgreSQL migration regression tests skip by default | The M6-F3 guard only runs when `TEST_POSTGRES_URL` is set; unset, 8 tests skip | **CI must set `TEST_POSTGRES_URL`**, or the enum-cleanup regression is unguarded |
+
+## M5 (production hardening) — carried forward
 
 | # | Issue | Impact | Workaround |
 | --- | --- | --- | --- |
 | 1 | Single-process execution; the priority queue is in-memory | Queued runs are lost on restart (rows persist as QUEUED but are never re-claimed). Running >1 replica risks **double execution** of the same row | Keep `WEB_CONCURRENCY=1` and one backend replica; re-trigger runs after a restart |
-| 2 | Rate limiting is per-process and in-memory | With N processes the effective limit is N× the configured value | Single process, or terminate rate limiting at a proxy |
+| 2 | Rate limiting is per-process and in-memory | With N processes the effective limit is N× the configured value. **M6 measured this**: with `--workers 4` and a 5/min budget, 15 of 30 credential attempts were admitted — 3x the limit | Single process (`WEB_CONCURRENCY=1`), or terminate rate limiting at a proxy |
 | 3 | SSE broker is per-process | A client connected to replica A sees no events from executions on replica B | Single replica |
 | 4 | Python sandbox is **not a security boundary** | A CPython escape yields the backend user's OS privileges. `os.stat` raises no audit event in 3.11, so file metadata is readable post-escape | Left disabled by default; run untrusted code in a container with seccomp. See `SECURITY.md` §5 |
 | 5 | The JavaScript node is **not sandboxed at all** | Enabling it grants local code execution with the backend user's permissions | Left disabled by default; only enable for trusted authors |
@@ -13,7 +27,7 @@
 | 7 | Access tokens cannot be revoked before expiry | A stolen access token stays valid for up to `AUTH_ACCESS_TOKEN_TTL_SECONDS` (default 15 min). Only refresh sessions are stateful | Shorten the TTL; deactivating a user kills refresh but not the live access token |
 | 8 | No MFA, SSO/OIDC or password reset flow | An administrator must reset forgotten passwords | — |
 | 9 | Audit coverage is partial and not tamper-evident | Auth and user administration are audited; workflow/media mutations are not. `POST /api/enterprise/audit` still accepts a caller-supplied `user_id` | Do not treat self-reported audit entries as trustworthy attribution |
-| 10 | Deployment assets have never been executed | Dockerfiles, compose stack and the documented procedures are unverified — no container runtime was available during M5 | Treat the first deployment as a validation exercise |
+| 10 | ~~Deployment assets have never been executed~~ | **Partially resolved in M6.** PostgreSQL migrations, production boot, health/readiness/metrics, graceful shutdown, restart, rollback and backup/restore are now all verified with real tooling. Only the Docker layer remains unexecuted — see M6-1 | — |
 | 11 | CI has never run | `ci/github-actions-ci.yml` is not in `.github/workflows/`; the automation account lacks the GitHub App `workflows` permission and the push is rejected | A maintainer must copy it in (see `ci/README.md`). `./scripts/ci-local.sh` runs the same checks |
 | 12 | No external security review or penetration test | Controls are verified only by this project's own tests | — |
 | 13 | Engine `_write_lock` is process-wide | Node status writes serialise across concurrent runs | Acceptable at current scale |

@@ -2,6 +2,84 @@
 
 ## [1.1.0] - 2026-07-26 (in progress)
 
+### Milestone 6 — Production validation, scalability and operational readiness
+
+No new features. M6 executed what M5 had only written: the deployment path was
+run for the first time against real PostgreSQL 16.2 and a real
+production-configured server. That exercise found six defects, three of which
+made a documented production deployment impossible. Full evidence in
+`M6_VALIDATION_REPORT.md`.
+
+#### Fixed — production blockers
+- **Comma-separated list settings crashed the process at import (M6-F1,
+  CRITICAL).** `pydantic-settings` JSON-decodes complex fields inside the
+  settings source, before field validators run, so the `_split_csv` validator
+  was dead code for environment input and `CORS_ORIGINS=a,b` raised
+  `SettingsError` during `Settings()`. Because that happens at import, the
+  process died before logging or startup validation existed to explain why —
+  and the M5 startup-validation gate was therefore unreachable on any
+  deployment configured the documented way. Custom env/dotenv sources now
+  accept CSV *and* JSON; malformed JSON still errors; source precedence is
+  unchanged.
+- **The `/api/v1` alias bypassed four path-prefix controls (M6-F2, HIGH).**
+  Routers are mounted at both `/api` and `/api/v1`, but the auth rate-limit
+  budget, CSRF exemption, credential `Cache-Control` and upload body-size
+  exemption all matched the literal `/api` prefix. Measured: 14 consecutive
+  logins on `/api/v1` were never throttled while `/api` throttled at 10. Added
+  `canonical_path()` and applied it at all four sites. RBAC was *not* affected
+  (route dependencies apply to both mounts) — now asserted by test.
+- **PostgreSQL downgrade orphaned ENUM types (M6-F3, HIGH).** `DROP TABLE` does
+  not remove the native type backing `sa.Enum`, so the rollback procedure in
+  `DEPLOYMENT.md` wedged the database: `downgrade` then `upgrade` failed with
+  `DuplicateObject: type "executionstatus" already exists`. Both affected
+  downgrades now drop their type. SQLite was unaffected, which is why the
+  SQLite-only M5 migration tests passed.
+- **`.env.production.example` was missing (M6-F4).** Referenced by
+  `docker-compose.yml` and `DEPLOYMENT.md`, but `.gitignore`'s blanket `.env.*`
+  rule had silently swallowed it, so the documented quick start failed at step
+  one. Template added; ignore rule fixed.
+
+#### Fixed — scalability
+- **Database connection pool was undersized (M6-F6, HIGH).** Found by load
+  testing, not by any existing test. Every in-flight request holds a connection
+  for its whole lifetime, so pool capacity — not CPU — caps concurrency. At 100
+  concurrent clients the M5 default (5+10=15) produced 16% errors and 7.6 rps
+  with p99 of 60 s. Raised to 20+60=80 (the measured knee: 500/500 ok, 0%
+  errors, 81.7 rps, p99 4.6 s — a 10.7x throughput and 13x p99 improvement).
+  `DB_POOL_TIMEOUT_SECONDS` is now explicit (10 s, was SQLAlchemy's implicit
+  30 s) and actually passed to `create_engine`; previously no `pool_timeout`
+  was wired in at all. Pool exhaustion now returns `503` + `Retry-After` with a
+  stable `database_unavailable` code instead of an opaque `500` with a leaked
+  stack trace, and startup validation warns when capacity is below 80.
+
+#### Verified for the first time
+- PostgreSQL migrations: upgrade, downgrade, and three full round-trip cycles.
+- Production boot with authentication, JSON logging, HSTS, docs disabled.
+- Health, readiness (correctly 503 with a named failing dependency), metrics.
+- Graceful shutdown (208 ms, orderly teardown), restart idempotency, SIGKILL
+  recovery with no data loss and no duplicate bootstrap admin.
+- Database outage and **automatic recovery in ~1 s with no app restart**.
+- Backup and disaster recovery: `pg_dump` -> `DROP DATABASE` -> `pg_restore`,
+  with users, projects, audit history and schema version all intact.
+
+#### Measured limitations (documented, not fixed)
+- **Rate limiting is per-process.** Measured: `--workers 4` with a 5/min budget
+  admitted 15 of 30 attempts — 3x the configured limit. The execution queue,
+  SSE broker and error aggregator are likewise per-process. Redis would fix
+  these but was **declined** for M6: it adds a mandatory external service to a
+  local-first product and would require rewriting the execution engine, which
+  the milestone brief prohibits. Supported scaling today is up, not out
+  (`WEB_CONCURRENCY=1`).
+- **Docker remains unexecuted.** No container runtime available.
+
+#### Testing
+- Backend 1342 -> **1446** (+104). With PostgreSQL: 1446 passed, 0 skipped.
+  Without: 1438 passed, 8 skipped (the PostgreSQL migration guards).
+- Every new suite was verified to **fail against the pre-fix code** (39 of 104
+  fail without the fixes), so they are genuine regression locks.
+- Frontend unchanged at 179 passing; typecheck and production build clean.
+- Added `scripts/loadtest.py`, the harness that produced the measurements.
+
 ### Milestone 5 — Production readiness and platform hardening
 
 Turns a functional application into a deployable platform. No new product

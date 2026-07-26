@@ -1,16 +1,27 @@
 # Deployment
 
-Creator OS v1.1 · last updated 2026-07-26 (M5)
+Creator OS v1.1 · last updated 2026-07-26 (M6)
 
 How to run Creator OS as a server. For the local desktop application see
 `INSTALLATION_GUIDE.md`.
 
-> **Status.** These assets are new in M5. The Dockerfiles, compose stack and
-> procedures below are written and reviewed, but **they have not been executed
-> end to end** — no container runtime was available in the environment where
-> M5 was developed. Treat the first deployment as a validation exercise.
-> `docker-compose.yml` was verified to parse and the Postgres driver was
-> verified to resolve, but the images have never been built or run.
+> **Status — updated in M6.** M6 executed this procedure against a real
+> PostgreSQL 16.2 server and a real production-configured backend. That found
+> and fixed four defects that made these instructions impossible to follow,
+> including a settings bug that prevented the process from starting at all
+> with the `.env` format documented below.
+>
+> **Verified end to end:** PostgreSQL migrations (upgrade, downgrade,
+> round-trip), production startup, `/health/live`, `/health/ready`, `/metrics`,
+> graceful shutdown, restart, SIGKILL recovery, database-outage recovery, and
+> `pg_dump`/`pg_restore` disaster recovery.
+>
+> **Still unverified:** the **Docker layer itself** — image build and
+> `docker compose up`. No container runtime was available in M5 or M6. Every
+> process the container would run has been validated outside it, but treat the
+> first containerised deployment as a validation exercise.
+>
+> Full evidence: `M6_VALIDATION_REPORT.md`.
 
 ---
 
@@ -120,6 +131,19 @@ Roll back one revision:
 ```bash
 docker compose --profile tools run --rm migrate alembic downgrade -1
 ```
+
+> **M6 note.** Before M6 this command left the database unusable on
+> PostgreSQL: `DROP TABLE` does not remove the native `ENUM` types backing
+> `sa.Enum`, so rolling forward again failed with
+> `DuplicateObject: type "executionstatus" already exists`. Fixed in M6 and
+> verified over three full `upgrade -> downgrade -> upgrade` cycles against
+> PostgreSQL 16.2. If you are rolling back a database migrated by a pre-M6
+> build, check for orphaned types with:
+>
+> ```sql
+> SELECT t.typname FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+> WHERE n.nspname = 'public' AND t.typtype = 'e';
+> ```
 
 Migrations are tested in CI-equivalent form by
 `backend/tests/m5/test_migrations_m5.py`, which exercises upgrade → downgrade →
@@ -270,13 +294,39 @@ subsystems hold state in process memory:
 | Subsystem | Consequence of running >1 process |
 | --- | --- |
 | Execution queue | Each process keeps its own in-memory queue. Two processes can claim the same queued execution — **double execution**. |
-| Rate limiter | Per-process counters, so the effective limit multiplies by process count. |
+| Rate limiter | Per-process counters, so the effective limit multiplies by process count. **M6 measured this**: `--workers 4` with a 5/min credential budget admitted 15 of 30 attempts — 3x the configured limit. |
 | SSE broker | A client connected to replica A sees no events from executions on replica B. |
 | AI traces / error aggregation | Per-process views only. |
 
 Keep `WEB_CONCURRENCY=1` and a single `backend` replica until a shared queue
 and rate-limit store exist. Scale vertically (`EXECUTION_MAX_WORKERS`,
 `WORKFLOW_MAX_PARALLEL_NODES`, CPU/RAM) instead.
+
+### Sizing a single instance (measured in M6)
+
+Every in-flight request holds one database connection for its entire lifetime,
+so **connection-pool capacity — not CPU — is what caps concurrency.** Measured
+at 100 concurrent authenticated clients against PostgreSQL 16.2:
+
+| `DB_POOL_SIZE` + `DB_MAX_OVERFLOW` | Success | Error rate | Throughput | p99 |
+| --- | --- | --- | --- | --- |
+| 5 + 10 = 15 (pre-M6 default) | 420/500 | 16.0% | 7.6 rps | 60.5 s |
+| 10 + 30 = 40 | 460/500 | 8.0% | 31.2 rps | 10.6 s |
+| 20 + 60 = 80 (**current default**) | 500/500 | 0.0% | 81.7 rps | 4.6 s |
+| 40 + 80 = 120 | 500/500 | 0.0% | 79.9 rps | — |
+
+Rules of thumb:
+
+* Capacity must exceed the concurrency you intend to serve; 80 handles ~100
+  concurrent authenticated requests with zero errors.
+* Beyond 80 there is no measurable gain — do not over-provision.
+* **`(DB_POOL_SIZE + DB_MAX_OVERFLOW) x replicas` must stay below the
+  PostgreSQL `max_connections`** (default 100). Raise `max_connections`, or put
+  PgBouncer in front, before adding replicas.
+* Overload is shed as `503` with `Retry-After` and the stable error code
+  `database_unavailable` — wire your load balancer to honour it.
+
+Reproduce these numbers with `python scripts/loadtest.py`.
 
 ---
 
@@ -316,3 +366,15 @@ is buffering the SSE stream. Ensure `proxy_buffering off` and a long
 **429s under normal load.** Raise `RATE_LIMIT_REQUESTS`, or check whether
 `TRUST_PROXY_HEADERS` is false behind a proxy — every client would then share
 one bucket keyed by the proxy's address.
+
+**503 `database_unavailable` under load.** The connection pool is exhausted:
+more requests are in flight than there are connections. Raise
+`DB_POOL_SIZE`/`DB_MAX_OVERFLOW` (see §9 sizing) and confirm PostgreSQL
+`max_connections` has room. This is load shedding working as intended, not a
+crash — the process stays live and `/health/live` keeps answering.
+
+**Backend will not start after editing `.env`.** Pre-M6 builds could not parse
+comma-separated `CORS_ORIGINS`/`ALLOWED_HOSTS` and died with an opaque
+`SettingsError` before logging started. M6 fixed this; both CSV and JSON array
+forms now work. If you are on an older build, use the JSON form:
+`CORS_ORIGINS=["https://studio.example.com"]`.

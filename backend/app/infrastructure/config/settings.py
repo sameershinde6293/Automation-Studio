@@ -1,8 +1,10 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.version import __version__
+
 class Settings(BaseSettings):
     APP_NAME: str = "Creator OS Backend"
-    VERSION: str = "1.0.1-alpha"
+    VERSION: str = __version__
     ENVIRONMENT: str = "development"
     DATABASE_URL: str = "sqlite:///./creator_os.db"
     

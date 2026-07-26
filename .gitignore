@@ -1,6 +1,45 @@
+# Python
 backend/venv/
-backend/__pycache__/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Databases (local runtime state)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Node / frontend
+node_modules/
 frontend/node_modules/
 frontend/dist/
 frontend/dist-electron/
+frontend/dist-electron-app/
+frontend/coverage/
+*.tsbuildinfo
+
+# Runtime data
+backend/data/
+backend/media_storage/
+logs/
+*.log
+
+# Environment / secrets
 .env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

@@ -1,12 +1,12 @@
 # Project Status
 
-**Current Status:** Workflow Engine Phase Completed
-**Version:** 0.3.0-alpha
+**Current Status:** Release Candidate (RC) V1.0 Completed
+**Version:** 1.0.0-rc
 
 ## Recent Updates
-- Implemented production-grade Workflow Engine with DAG execution.
-- Added database persistence for workflow definitions, node configurations, and edges.
-- Added execution tracking with detailed statuses for workflows and individual nodes.
-- Implemented robust task checkpointing and concurrent execution capabilities.
-- Defined base executor interfaces and mock executors.
-- All 13 backend unit tests passing successfully.
+- Completed AI Runtime (Model registry, prompt orchestrator, tracking).
+- Completed Media Pipeline (Jobs & Asset tracking).
+- Enhanced Desktop UI (React views for all subsystems).
+- Implemented Plugin SDK and Enterprise Features (RBAC, Audit).
+- Verified full system stability.
+- Produced Version 1.0 Release Candidate.

@@ -1,9 +1,10 @@
 # Changelog
 
-## [0.3.0-alpha] - 2026-07-26
+## [1.0.0-rc] - 2026-07-26
 ### Added
-- Workflow models including Workflow, Node, Edge, WorkflowExecution, and NodeExecution.
-- Alembic database migration to support workflow engine tables.
-- Workflow engine supporting parallel node execution resolving DAG topological ordering.
-- Node executor framework configured with simple test nodes.
-- Retry policies and cancellation management built into execution engine logic.
+- Complete AI Runtime integration (Mock implementations for external services but robust local abstractions).
+- Media Asset Processing Pipeline infrastructure.
+- React-based Desktop UI components linking all service stubs.
+- Plugin SDK for extensibility hooks.
+- Enterprise components (Auth, Logging).
+- Production hardened Fast API endpoints and middleware logic.

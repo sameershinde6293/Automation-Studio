@@ -7,11 +7,11 @@
 - [x] 5. Implement infrastructure.
 - [x] 6. Implement database.
 - [x] 7. Implement workflow engine.
-- [ ] 8. Implement AI runtime.
-- [ ] 9. Implement media pipeline.
-- [ ] 10. Implement desktop UI.
-- [ ] 11. Implement plugin SDK.
-- [ ] 12. Implement enterprise features.
-- [ ] 13. Implement AI automation.
-- [ ] 14. Harden for production.
-- [ ] 15. Produce release candidate.
+- [x] 8. Implement AI runtime.
+- [x] 9. Implement media pipeline.
+- [x] 10. Implement desktop UI.
+- [x] 11. Implement plugin SDK.
+- [x] 12. Implement enterprise features.
+- [x] 13. Implement AI automation.
+- [x] 14. Harden for production.
+- [x] 15. Produce release candidate.

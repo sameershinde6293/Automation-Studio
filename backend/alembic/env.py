@@ -7,13 +7,14 @@ from sqlalchemy import pool
 
 from alembic import context
 
-# Add backend directory to sys.path
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from app.infrastructure.database.database import Base
 from app.domain.models.project import Project
 from app.domain.models.plugin import Plugin
 from app.domain.models.workflow import Workflow, Node, Edge, WorkflowExecution, NodeExecution
+from app.domain.models.ai.models import AIModelRegistry, Conversation, Message, TokenUsage
+from app.domain.models.media.models import MediaAsset, ProcessingJob
 from app.infrastructure.config.settings import settings
 
 config = context.config

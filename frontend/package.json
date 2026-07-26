@@ -1,36 +1,33 @@
 {
-  "name": "frontend",
+  "name": "creator-os",
   "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "version": "1.0.0-rc1",
+  "description": "Creator OS Desktop Application",
+  "author": "Creator OS Team",
+  "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build && tsc -p electron/tsconfig.json",
-    "lint": "oxlint",
-    "preview": "vite preview",
     "serve": "vite preview",
     "electron:dev": "concurrently \"cross-env BROWSER=none vite\" \"wait-on http://localhost:5173 && tsc -p electron/tsconfig.json && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
     "electron:build": "npm run build && electron-builder"
   },
   "dependencies": {
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@types/node": "^24.13.2",
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.3",
-    "concurrently": "^10.0.4",
-    "cross-env": "^10.1.0",
-    "electron": "^43.2.0",
-    "electron-builder": "^26.15.3",
-    "oxlint": "^1.71.0",
-    "typescript": "~6.0.2",
-    "vite": "^8.1.1",
-    "wait-on": "^9.1.0"
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "electron": "^31.3.1",
+    "electron-builder": "^24.13.3",
+    "typescript": "^5.2.2",
+    "vite": "^5.3.4",
+    "wait-on": "^7.2.0"
   },
-  "main": "dist-electron/main.js",
   "build": {
     "appId": "com.creatoros.app",
     "productName": "Creator OS",

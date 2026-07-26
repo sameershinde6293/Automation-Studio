@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.infrastructure.config.settings import settings
 from app.infrastructure.logging.logger import logger
-from app.api.routers import workflow_router, ai_router, media_router
+from app.api.routers import workflow_router, ai_router, media_router, project_router
 
 app = FastAPI(title=settings.APP_NAME, version=settings.VERSION)
 
@@ -17,6 +17,7 @@ app.add_middleware(
 app.include_router(workflow_router.router, prefix="/api")
 app.include_router(ai_router.router, prefix="/api")
 app.include_router(media_router.router, prefix="/api")
+app.include_router(project_router.router, prefix="/api")
 
 @app.on_event("startup")
 async def startup_event():

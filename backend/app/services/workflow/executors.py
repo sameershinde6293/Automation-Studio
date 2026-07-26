@@ -655,5 +655,79 @@ class ExecutorRegistry:
             )
         return entries
 
+    def schemas(self) -> List[Dict[str, Any]]:
+        """Full input/output schemas per node type (M4).
+
+        Nodes built on the M4 runtime describe themselves precisely; the older
+        M1 executors fall back to their ``config_schema``.
+        """
+        from app.services.workflow.runtime import RuntimeNodeExecutor
+
+        # Canonical names come from the node library; everything else that maps
+        # to the same executor instance is an alias. Deriving this from the
+        # library (rather than "first seen alphabetically") keeps the editor's
+        # canonical type — e.g. httpRequest — from being hidden behind an alias
+        # such as "http" purely because of sort order.
+        canonical: Dict[int, str] = {}
+        try:
+            from app.services.workflow.nodes import NODE_LIBRARY
+
+            for node_type, executor in NODE_LIBRARY.items():
+                canonical[id(executor)] = node_type
+        except Exception:  # pragma: no cover - library is optional
+            logger.debug("Node library unavailable for schema canonicalisation.")
+
+        entries: List[Dict[str, Any]] = []
+        for node_type, executor in sorted(self.executors.items()):
+            if isinstance(executor, RuntimeNodeExecutor):
+                entry = executor.describe(node_type)
+            else:
+                entry = {
+                    "type": node_type,
+                    "label": executor.label,
+                    "category": executor.category,
+                    "description": executor.description,
+                    "aliases": [],
+                    "enabled": True,
+                    "schema": {"inputs": [], "outputs": []},
+                    "config_schema": executor.config_schema,
+                }
+            preferred = canonical.get(id(executor))
+            entry["is_alias"] = preferred is not None and preferred != node_type
+            entry["canonical_type"] = preferred or node_type
+            entries.append(entry)
+        return entries
+
+    def resolve(self, node_type: str) -> Optional[str]:
+        """Canonical registered name for a node type, or None when unknown."""
+        return node_type if node_type in self.executors else None
+
 
 executor_registry = ExecutorRegistry()
+
+
+def _register_m4_library() -> None:
+    """Register the M4 node library into the shared registry.
+
+    ``RuntimeNodeExecutor`` is declared a virtual subclass of
+    ``BaseNodeExecutor`` here (rather than inheriting directly) so that
+    ``runtime`` never has to import ``executors`` at class-creation time; that
+    would be circular, since this module imports ``runtime``.
+
+    Guarded so a failure degrades to "the M4 nodes are unavailable" rather than
+    breaking the whole application import.
+    """
+    try:
+        from app.services.workflow.runtime import RuntimeNodeExecutor
+
+        BaseNodeExecutor.register(RuntimeNodeExecutor)
+
+        from app.services.workflow.nodes import register_all
+
+        registered = register_all(executor_registry)
+        logger.info("Registered %s M4 node type(s).", len(registered))
+    except Exception:  # pragma: no cover - defensive
+        logger.exception("Failed to register the M4 node library.")
+
+
+_register_m4_library()

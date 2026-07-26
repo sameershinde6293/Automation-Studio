@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.errors import ConflictError, NotFoundError, ValidationError
-from app.domain.models.workflow import ExecutionStatus
+from app.domain.models.workflow import ExecutionPriority, ExecutionStatus
 from app.domain.repositories.workflow_repository import (
     EdgeCreate,
     NodeCreate,
@@ -33,7 +33,11 @@ from app.infrastructure.config.settings import settings
 from app.infrastructure.database.database import get_db
 from app.services.workflow.engine import workflow_engine
 from app.services.workflow.executors import executor_registry
-from app.services.workflow.graph import execution_layers, validate_graph
+from app.services.workflow.graph import (
+    execution_layers,
+    validate_graph,
+    validate_graph_with_loops,
+)
 
 router = APIRouter(prefix="/workflows", tags=["Workflows"])
 
@@ -68,6 +72,20 @@ class RunRequest(BaseModel):
     trigger: Optional[str] = "manual"
     wait: bool = Field(
         False, description="Run synchronously and return the final result."
+    )
+    # --- M4 ---
+    priority: Optional[int] = Field(
+        None, description="0=critical, 10=high, 50=normal (default), 90=low"
+    )
+    input_data: Optional[Dict[str, Any]] = Field(
+        None, description="Variables seeded into the run context as {{ vars.x }}"
+    )
+    queued: bool = Field(
+        True,
+        description=(
+            "Route through the bounded priority queue (recommended). "
+            "False submits directly, matching pre-M4 behaviour."
+        ),
     )
 
 
@@ -178,13 +196,18 @@ def replace_graph(
             details={"node_types": unknown, "available": sorted(executor_registry.executors)},
         )
 
+    # M4: validate with loop awareness so a graph whose cycle is closed by an
+    # explicitly 'loop'-labelled edge can be saved. Unlabelled cycles are still
+    # rejected exactly as before.
     client_ids = [n.id for n in payload.nodes if n.id is not None]
-    validation = validate_graph(
-        client_ids or [i for i, _ in enumerate(payload.nodes)],
-        [(e.source_id, e.target_id) for e in payload.edges] if client_ids else [],
-        max_nodes=settings.WORKFLOW_MAX_NODES,
-    ) if payload.nodes else None
-    if validation is not None and not validation.is_valid:
+    if payload.nodes:
+        validation, _forward, _loops = validate_graph_with_loops(
+            client_ids or [i for i, _ in enumerate(payload.nodes)],
+            [(e.source_id, e.target_id, e.label) for e in payload.edges]
+            if client_ids
+            else [],
+            max_nodes=settings.WORKFLOW_MAX_NODES,
+        )
         validation.raise_if_invalid()
 
     # Clear existing graph, then rebuild.
@@ -244,13 +267,17 @@ def validate_workflow(workflow_id: int, db: Session = Depends(get_db)) -> Dict[s
     nodes = node_repo.get_by_workflow(db, workflow_id)
     edges = edge_repo.get_by_workflow(db, workflow_id)
     node_ids = [n.id for n in nodes]
-    pairs = [(e.source_id, e.target_id) for e in edges]
 
-    result = validate_graph(node_ids, pairs, max_nodes=settings.WORKFLOW_MAX_NODES)
+    # M4: loop-labelled back-edges are legal; validate with loop awareness and
+    # compute layers from the forward-only sub-graph.
+    labelled = [(e.source_id, e.target_id, e.label) for e in edges]
+    result, forward, loops = validate_graph_with_loops(
+        node_ids, labelled, max_nodes=settings.WORKFLOW_MAX_NODES
+    )
     layers: List[List[int]] = []
     if result.is_valid:
         try:
-            layers = execution_layers(node_ids, pairs)
+            layers = execution_layers(node_ids, forward)
         except ValueError:
             layers = []
 
@@ -259,14 +286,40 @@ def validate_workflow(workflow_id: int, db: Session = Depends(get_db)) -> Dict[s
     if unknown:
         errors.append(f"Unknown node type(s): {', '.join(unknown)}")
 
+    # M4: surface per-node config validation so the editor can flag bad configs
+    # before the run rather than failing mid-execution.
+    node_errors: List[Dict[str, Any]] = []
+    for node in nodes:
+        if not executor_registry.has(node.node_type):
+            continue
+        executor = executor_registry.get_executor(node.node_type)
+        validate = getattr(executor, "validate_config", None)
+        if validate is None:
+            continue
+        try:
+            validate(node)
+        except Exception as exc:  # config problems are data, not failures
+            node_errors.append(
+                {
+                    "node_id": node.id,
+                    "node_name": node.name,
+                    "node_type": node.node_type,
+                    "error": getattr(exc, "message", str(exc)),
+                }
+            )
+
     return {
-        "is_valid": result.is_valid and not unknown,
+        "is_valid": result.is_valid and not unknown and not node_errors,
         "errors": errors,
         "warnings": result.warnings,
         "cycles": result.cycles,
         "layers": layers,
         "node_count": len(nodes),
         "edge_count": len(edges),
+        "loop_edges": [
+            {"source_id": s, "target_id": t, "label": lbl} for s, t, lbl in loops
+        ],
+        "node_errors": node_errors,
     }
 
 
@@ -391,20 +444,51 @@ async def create_execution(
 
     nodes = node_repo.get_by_workflow(db, workflow_id)
     edges = edge_repo.get_by_workflow(db, workflow_id)
-    result = validate_graph(
+    # M4: loop back-edges are legal, so validate with loop awareness.
+    result, _forward, _loops = validate_graph_with_loops(
         [n.id for n in nodes],
-        [(e.source_id, e.target_id) for e in edges],
+        [(e.source_id, e.target_id, e.label) for e in edges],
         max_nodes=settings.WORKFLOW_MAX_NODES,
     )
     result.raise_if_invalid()
 
+    priority = ExecutionPriority.coerce(request.priority).value
     execution = workflow_execution_repo.create(
-        db, WorkflowExecutionCreate(workflow_id=workflow_id, trigger=request.trigger)
+        db,
+        WorkflowExecutionCreate(
+            workflow_id=workflow_id,
+            trigger=request.trigger,
+            priority=priority,
+            input_data=request.input_data,
+        ),
     )
 
     if request.wait:
-        summary = await workflow_engine.run_execution(execution.id)
+        # Synchronous run bypasses the queue by design so the caller gets the
+        # final result in the response.
+        summary = await workflow_engine.run_execution_v2(execution.id)
         return {"execution_id": execution.id, **summary}
+
+    if request.queued:
+        queue_info = workflow_engine.enqueue(
+            execution.id, priority=priority, workflow_id=workflow_id
+        )
+        # ``status`` reflects what actually happened: QUEUED when the worker
+        # pool accepted it, PENDING when it was submitted directly (no pool),
+        # which preserves the pre-M4 response contract.
+        return {
+            "execution_id": execution.id,
+            "workflow_id": workflow_id,
+            "status": queue_info["status"],
+            "priority": priority,
+            "message": (
+                "Execution queued."
+                if queue_info["mode"] == "queued"
+                else "Execution submitted."
+            ),
+            "queue": queue_info,
+            "stream_url": f"/api/executions/{execution.id}/stream",
+        }
 
     workflow_engine.submit(execution.id)
     return {
@@ -412,6 +496,7 @@ async def create_execution(
         "workflow_id": workflow_id,
         "status": ExecutionStatus.PENDING.value,
         "message": "Execution submitted.",
+        "stream_url": f"/api/executions/{execution.id}/stream",
     }
 
 

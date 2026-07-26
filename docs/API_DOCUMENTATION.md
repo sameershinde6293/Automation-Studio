@@ -17,6 +17,11 @@ All application errors use the stable envelope:
 - `GET /api/system/info` - Runtime/build information
 - `GET /api/system/metrics` - Lightweight process metrics
 - `GET /api/system/node-types` - Workflow node catalog
+- `GET /api/system/node-schemas` - Typed input/output schemas per node type (M4)
+  - Query: `include_aliases=false`, `category=<control|ai|network|data|script|io|media|integration>`
+  - Each entry reports `enabled` (false for flag-gated nodes), `canonical_type` and `is_alias`.
+- `GET /api/system/events` - Recent in-process events
+- `GET /api/system/scheduler/jobs` - Scheduled background jobs
 
 ## Workflows
 
@@ -33,7 +38,75 @@ All application errors use the stable envelope:
 - `GET /api/workflows/{workflow_id}/edges` - List edges
 - `POST /api/workflows/{workflow_id}/graph/validate` - Validate a DAG
 - `PUT /api/workflows/{workflow_id}/graph` - Save a complete graph
-- `POST /api/workflows/{workflow_id}/run` - Execute a workflow
+- `POST /api/workflows/{workflow_id}/executions` - Create and start an execution
+  - Body: `{"trigger": str?, "wait": bool?, "priority": int?, "input_data": object?, "queued": bool?}`
+  - `priority`: `0` critical, `10` high, `50` normal (default), `90` low. Out-of-range values snap to the nearest band.
+  - `input_data` is seeded into the run context and readable as `{{ vars.x }}`.
+  - `wait=true` runs synchronously and returns the final summary.
+  - Returns `status` (`QUEUED` when the worker pool accepted it, `PENDING` when submitted directly) and a `stream_url`.
+  - `429 queue_full` when the queue is at `EXECUTION_QUEUE_MAX_SIZE`.
+- `GET /api/workflows/{workflow_id}/executions` - List executions for one workflow
+- `GET /api/workflows/executions/{execution_id}` - Execution status and node results
+- `POST /api/workflows/executions/{execution_id}/cancel` - Hard cancel
+- `POST /api/workflows/{execution_id}/run` - **Deprecated** V1.0 compatibility endpoint
+
+`POST /api/workflows/{workflow_id}/validate` is loop-aware: a cycle whose closing
+edge is labelled `loop` is valid. The response adds `loop_edges` and
+`node_errors` (per-node config validation), so the editor can surface a bad node
+config before the run instead of failing mid-execution.
+
+## Executions (M4)
+
+Execution control, history and streaming. These complement — and do not
+duplicate — the workflow-scoped endpoints above.
+
+### Control
+
+- `POST /api/executions/{id}/pause` - Stop scheduling new nodes; in-flight nodes finish
+- `POST /api/executions/{id}/resume` - Resume a paused execution
+- `POST /api/executions/{id}/stop` - Graceful stop; drains in-flight nodes, ends as `CANCELLED`
+
+All three return `{"execution_id", "action", "changed", "message"}`.
+`changed=false` means the request was a no-op (e.g. already paused).
+A terminal execution returns `409 conflict`; an unknown id returns `404`.
+
+### History
+
+- `GET /api/executions` - Search across workflows
+  - Query: `workflow_id`, `status` (repeatable), `trigger`, `search`, `created_after`, `created_before`, `skip`, `limit` (1-200)
+  - `search` matches the workflow name **or** the execution error text.
+  - Unknown `status` values return `422`.
+  - Response: `{"items": [...], "total": int, "skip": int, "limit": int, "has_more": bool}`
+- `GET /api/executions/{id}` - Detail with `node_executions`, `state`, `metrics`, `is_running`, `is_paused`
+- `GET /api/executions/{id}/logs` - Durable log records
+  - Query: `after_sequence`, `level`, `node_id`, `search`, `limit` (1-2000)
+- `GET /api/executions/{id}/timeline` - Node-by-node timings for a Gantt view
+- `GET /api/executions/{id}/lineage` - Replay/resume ancestors and children
+- `GET /api/executions/stats` - Aggregate counts, success rate, durations, tokens, cost
+- `GET /api/executions/queue` - Queue depth, waiting entries, worker pool and streaming stats
+
+### Replay and resume
+
+- `POST /api/executions/{id}/replay` - Fresh run of the same graph (`201`)
+  - Body: `{"priority": int?, "input_data": object?, "start": bool?}`
+- `POST /api/executions/{id}/resume-failed` - Retry a failed run with prior context (`201`)
+  - Only valid for `FAILED`/`CANCELLED` executions; otherwise `409`.
+  - Completed node outputs are seeded into `input_data.__resume__`.
+  - **Limitation:** the graph is re-traversed from the start, so completed nodes
+    re-execute unless they are pure. This is a retry with context, not
+    mid-graph resumption.
+
+### Live updates
+
+- `GET /api/executions/{id}/stream` - Server-Sent Events stream
+  - Query: `after_sequence` to resume after a reconnect.
+  - Events: `execution.queued|started|progress|paused|resumed|stopping|finished`,
+    `node.started|finished|retry|skipped`, `log`.
+  - Subscriber queues are bounded (drop-oldest), so a slow client is degraded
+    rather than stalling the engine.
+  - The stream closes on the terminal event; a `: keepalive` comment is sent
+    every `EXECUTION_STREAM_HEARTBEAT_SECONDS` while idle.
+- `GET /api/executions/{id}/events` - Polling fallback for clients without `EventSource`
 
 ## AI Runtime
 
@@ -65,6 +138,21 @@ All application errors use the stable envelope:
 The orchestrator trims context by `AI_CONTEXT_MAX_MESSAGES` and
 `AI_CONTEXT_MAX_TOKENS`, preserving a leading system prompt and the most recent
 turns.
+
+### Cost, tracing and health (M4)
+
+- `POST /api/ai/estimate` - Estimate tokens and USD cost
+  - Body: `{"text": str?, "model_name": str?, "prompt_tokens": int?, "completion_tokens": int?}`
+  - Requires either `text` or `prompt_tokens`, otherwise `422`.
+  - Prices are list-price **estimates**, not billing truth.
+- `GET /api/ai/pricing` - Known per-model pricing
+- `GET /api/ai/traces?limit=50&only_failures=false` - Recent AI calls including
+  every fallback attempt. In-memory and bounded; lost on restart.
+- `GET /api/ai/health` - Provider availability, circuit-breaker state and the
+  configured fallback chain
+
+Generation used by AI workflow nodes goes through the provider fallback chain
+(`AI_FALLBACK_CHAIN`) with a circuit breaker per provider.
 
 ### Token usage
 

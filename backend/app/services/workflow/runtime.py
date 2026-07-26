@@ -104,9 +104,9 @@ def classify_exception(exc: BaseException) -> NodeErrorCode:
         return NodeErrorCode.NETWORK
     if isinstance(exc, PermissionError):
         return NodeErrorCode.PERMISSION
-    if isinstance(exc, (TypeError, ValueError, KeyError)):
+    if isinstance(exc, (TypeError, ValueError, KeyError, IndexError, AttributeError)):
         return NodeErrorCode.RUNTIME
-    if isinstance(exc, ExecutionError):
+    if isinstance(exc, (RuntimeError, ArithmeticError, ExecutionError)):
         return NodeErrorCode.RUNTIME
     return NodeErrorCode.UNKNOWN
 
@@ -389,11 +389,23 @@ def truncate_output(value: Any, max_bytes: Optional[int] = None) -> Any:
     limit = settings.EXECUTION_MAX_OUTPUT_BYTES if max_bytes is None else max_bytes
     if limit <= 0:
         return value
+
+    # Strict pass first: ``default=str`` would coerce arbitrary objects into
+    # strings, which then fail on the way into the JSON column. Detect that
+    # here and return an explicit, storable marker instead.
     try:
-        encoded = json.dumps(value, default=str)
+        encoded = json.dumps(value)
     except (TypeError, ValueError):
-        return {"truncated": True, "reason": "output is not JSON-serialisable",
-                "repr": str(value)[:limit]}
+        try:
+            encoded = json.dumps(value, default=str)
+        except (TypeError, ValueError):
+            encoded = None
+        return {
+            "truncated": True,
+            "reason": "output is not JSON-serialisable",
+            "type": type(value).__name__,
+            "repr": str(value)[: min(limit, 4096)],
+        }
     if len(encoded) <= limit:
         return value
     if isinstance(value, str):

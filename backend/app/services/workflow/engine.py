@@ -1064,6 +1064,11 @@ class WorkflowEngine:
         node_run_count = 0
         fail_fast = False
         stopped_early = False
+        #: Set when the engine itself aborts the run (wall-clock timeout or the
+        #: node-execution cap) as opposed to a node failing. Without this the
+        #: run could finish with an error recorded but still report COMPLETED,
+        #: because the terminal status only inspected ``failed``.
+        abort_reason: Optional[str] = None
 
         max_parallel = max(1, settings.WORKFLOW_MAX_PARALLEL_NODES)
         semaphore = asyncio.Semaphore(max_parallel)
@@ -1152,10 +1157,12 @@ class WorkflowEngine:
 
         try:
             while True:
-                if time.perf_counter() > deadline:
-                    errors.append(
-                        f"Execution exceeded {settings.EXECUTION_TIMEOUT_SECONDS}s timeout."
+                if time.perf_counter() > deadline and abort_reason is None:
+                    abort_reason = (
+                        f"Execution exceeded the {settings.EXECUTION_TIMEOUT_SECONDS}s "
+                        "wall-clock timeout."
                     )
+                    errors.append(abort_reason)
                     fail_fast = True
 
                 # --- pause -------------------------------------------------
@@ -1201,10 +1208,11 @@ class WorkflowEngine:
                     ]
                     for node in ready:
                         if node_run_count >= settings.WORKFLOW_MAX_NODE_EXECUTIONS:
-                            errors.append(
+                            abort_reason = (
                                 "Execution exceeded WORKFLOW_MAX_NODE_EXECUTIONS "
                                 f"({settings.WORKFLOW_MAX_NODE_EXECUTIONS})."
                             )
+                            errors.append(abort_reason)
                             fail_fast = True
                             break
                         node_run_count += 1
@@ -1381,7 +1389,7 @@ class WorkflowEngine:
                 "updated_at": _now_iso(),
             }
 
-            if failed:
+            if failed or abort_reason:
                 status = ExecutionStatus.FAILED
                 message = "; ".join(errors)[:4000]
             elif stopped_early or handle.is_stopping:

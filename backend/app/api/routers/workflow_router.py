@@ -196,13 +196,18 @@ def replace_graph(
             details={"node_types": unknown, "available": sorted(executor_registry.executors)},
         )
 
+    # M4: validate with loop awareness so a graph whose cycle is closed by an
+    # explicitly 'loop'-labelled edge can be saved. Unlabelled cycles are still
+    # rejected exactly as before.
     client_ids = [n.id for n in payload.nodes if n.id is not None]
-    validation = validate_graph(
-        client_ids or [i for i, _ in enumerate(payload.nodes)],
-        [(e.source_id, e.target_id) for e in payload.edges] if client_ids else [],
-        max_nodes=settings.WORKFLOW_MAX_NODES,
-    ) if payload.nodes else None
-    if validation is not None and not validation.is_valid:
+    if payload.nodes:
+        validation, _forward, _loops = validate_graph_with_loops(
+            client_ids or [i for i, _ in enumerate(payload.nodes)],
+            [(e.source_id, e.target_id, e.label) for e in payload.edges]
+            if client_ids
+            else [],
+            max_nodes=settings.WORKFLOW_MAX_NODES,
+        )
         validation.raise_if_invalid()
 
     # Clear existing graph, then rebuild.

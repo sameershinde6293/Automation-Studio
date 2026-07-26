@@ -92,13 +92,16 @@ class AIOrchestrator:
         ]
 
     def _provider_available(self, name: str) -> bool:
-        if name == "mock":
-            return True
+        """Whether a provider is configured well enough to be worth calling.
+
+        Only ``openai`` has a hard prerequisite (an API key). Any other
+        registered provider — including ones added at runtime by a plugin or a
+        test — is assumed usable; returning False for unknown names would
+        silently drop them from the fallback chain.
+        """
         if name == "openai":
             return bool(settings.OPENAI_API_KEY)
-        if name == "local":
-            return True
-        return False
+        return name in self.providers
 
     def _capabilities(self, name: str) -> List[str]:
         if name == "mock":

@@ -11,9 +11,9 @@ from alembic import context
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from app.infrastructure.database.database import Base
-# Import all models to ensure they are registered with Base.metadata
 from app.domain.models.project import Project
 from app.domain.models.plugin import Plugin
+from app.domain.models.workflow import Workflow, Node, Edge, WorkflowExecution, NodeExecution
 from app.infrastructure.config.settings import settings
 
 config = context.config

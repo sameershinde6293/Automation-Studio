@@ -1,12 +1,9 @@
 # Changelog
 
-## [0.2.0-alpha] - 2026-07-26
+## [0.3.0-alpha] - 2026-07-26
 ### Added
-- SQLAlchemy database integration.
-- Alembic database migrations.
-- Base repository and specific repositories for Projects and Plugins.
-- Pydantic BaseSettings based Configuration Service.
-- Event Bus implementation.
-- APScheduler Job Scheduler implementation.
-- Structured logging configuration.
-- Project & Plugin Services with corresponding unit tests.
+- Workflow models including Workflow, Node, Edge, WorkflowExecution, and NodeExecution.
+- Alembic database migration to support workflow engine tables.
+- Workflow engine supporting parallel node execution resolving DAG topological ordering.
+- Node executor framework configured with simple test nodes.
+- Retry policies and cancellation management built into execution engine logic.

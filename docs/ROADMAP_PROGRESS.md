@@ -6,7 +6,7 @@
 - [x] 4. Bootstrap repository.
 - [x] 5. Implement infrastructure.
 - [x] 6. Implement database.
-- [ ] 7. Implement workflow engine.
+- [x] 7. Implement workflow engine.
 - [ ] 8. Implement AI runtime.
 - [ ] 9. Implement media pipeline.
 - [ ] 10. Implement desktop UI.

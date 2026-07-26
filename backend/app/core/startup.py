@@ -214,6 +214,29 @@ def validate_settings(settings: Any) -> List[Finding]:
             )
         )
 
+    # M6-F6: connection-pool capacity is what caps request concurrency,
+    # because every in-flight request holds a connection for its whole
+    # lifetime. Measured at 100 concurrent clients: capacity 40 and 60 both
+    # shed 40 requests as 503s; capacity 80 served all 500 cleanly.
+    if not settings.is_sqlite:
+        pool_capacity = int(getattr(settings, "DB_POOL_SIZE", 0)) + int(
+            getattr(settings, "DB_MAX_OVERFLOW", 0)
+        )
+        if 0 < pool_capacity < 80:
+            findings.append(
+                Finding(
+                    "DB_POOL_SIZE",
+                    f"Database pool capacity is {pool_capacity} "
+                    "(DB_POOL_SIZE + DB_MAX_OVERFLOW). Each in-flight request "
+                    "holds one connection, so sustained concurrency above that "
+                    "is shed as 503s once the pool timeout elapses.",
+                    SEVERITY_WARNING,
+                    "Raise DB_POOL_SIZE/DB_MAX_OVERFLOW to at least 80 "
+                    "combined, and keep capacity x replicas below the "
+                    "PostgreSQL max_connections.",
+                )
+            )
+
     if settings.DB_ECHO and production:
         findings.append(
             Finding(

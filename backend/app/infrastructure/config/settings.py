@@ -92,9 +92,28 @@ class Settings(BaseSettings):
     # --- Persistence --------------------------------------------------------
     DATABASE_URL: str = "sqlite:///./creator_os.db"
     DB_ECHO: bool = False
-    DB_POOL_SIZE: int = 5
-    DB_MAX_OVERFLOW: int = 10
+    #: Pooled connections. Every in-flight request holds one connection for
+    #: its whole lifetime (``get_db`` yields the session for the duration of
+    #: the handler), so pool capacity — not CPU — is what caps concurrency.
+    #:
+    #: M6 load testing measured this directly at 100 concurrent clients:
+    #:   capacity  40 -> 460/500 ok, 40x 503, 31 rps
+    #:   capacity  60 -> 460/500 ok, 40x 503, 31 rps
+    #:   capacity  80 -> 500/500 ok,  0 errors, 79 rps
+    #:   capacity 120 -> 500/500 ok,  0 errors, 80 rps  (no further gain)
+    #: 80 is the knee of the curve. See docs/M6_VALIDATION_REPORT.md (M6-F6).
+    #:
+    #: Sizing rule: capacity x replicas must stay below the PostgreSQL
+    #: ``max_connections`` (default 100 — raise it, or use PgBouncer, before
+    #: scaling out).
+    DB_POOL_SIZE: int = 20
+    DB_MAX_OVERFLOW: int = 60
     DB_POOL_RECYCLE_SECONDS: int = 1800
+    #: Seconds a request waits for a pooled connection before failing.
+    #: SQLAlchemy's 30s default turns overload into a 30s hang per request and
+    #: a stampede of timeouts; failing fast sheds load and keeps the process
+    #: responsive so /health/live still answers.
+    DB_POOL_TIMEOUT_SECONDS: float = 10.0
     SQLITE_BUSY_TIMEOUT_MS: int = 5000
 
     # --- Logging ------------------------------------------------------------

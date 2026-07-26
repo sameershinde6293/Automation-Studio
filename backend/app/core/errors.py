@@ -23,6 +23,7 @@ from typing import Any, Dict, Optional
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import TimeoutError as SQLTimeoutError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 logger = logging.getLogger("creator_os.errors")
@@ -194,6 +195,37 @@ def register_exception_handlers(app: FastAPI) -> None:
         if rid:
             body["request_id"] = rid
         return JSONResponse(status_code=422, content={"error": body})
+
+    @app.exception_handler(SQLTimeoutError)
+    async def _handle_pool_exhaustion(
+        request: Request, exc: SQLTimeoutError
+    ) -> JSONResponse:
+        """Connection-pool exhaustion is overload, not a bug (M6-F6).
+
+        M6 load testing saw this surface as an opaque HTTP 500 with a leaked
+        stack trace in the logs. Overload is a *retryable* condition and the
+        correct signal is 503 with Retry-After, so a load balancer backs off
+        and takes the instance out of rotation instead of hammering it.
+        """
+        rid = _request_id(request)
+        logger.error(
+            "Database connection pool exhausted on %s %s",
+            request.method,
+            request.url.path,
+            extra={"request_id": rid, "error_code": "database_unavailable"},
+        )
+        body: Dict[str, Any] = {
+            "code": "database_unavailable",
+            "message": (
+                "The server is at capacity and could not obtain a database "
+                "connection. Retry shortly."
+            ),
+        }
+        if rid:
+            body["request_id"] = rid
+        return JSONResponse(
+            status_code=503, content={"error": body}, headers={"Retry-After": "1"}
+        )
 
     @app.exception_handler(Exception)
     async def _handle_unexpected(request: Request, exc: Exception) -> JSONResponse:

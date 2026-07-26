@@ -331,16 +331,41 @@ class AuthService:
         except TokenError as exc:
             raise UnauthorizedError(f"Invalid refresh token: {exc}") from exc
 
+        token_hash = hash_token_id(claims["jti"])
         session = (
             db.query(RefreshSession)
-            .filter(RefreshSession.token_hash == hash_token_id(claims["jti"]))
+            .filter(RefreshSession.token_hash == token_hash)
             .one_or_none()
         )
         if session is None:
             raise UnauthorizedError("Refresh session is not recognised.")
-        if session.revoked_at is not None:
-            # A revoked token being replayed is a strong signal of theft; drop
-            # every session for that user rather than just this one.
+        if session.expires_at <= utcnow():
+            raise UnauthorizedError("Refresh session has expired.")
+
+        # Claim the session with a single conditional UPDATE.
+        #
+        # Reading `revoked_at`, deciding, then writing is a check-then-act race:
+        # concurrent requests presenting the same token all observe NULL and all
+        # proceed, so one stolen token yields several valid sessions. A probe
+        # with 8 concurrent rotations produced 3 successes before this change.
+        #
+        # `UPDATE ... WHERE revoked_at IS NULL` is atomic in both SQLite and
+        # PostgreSQL, so exactly one caller sees rowcount 1 and wins.
+        now = utcnow()
+        claimed = (
+            db.query(RefreshSession)
+            .filter(
+                RefreshSession.token_hash == token_hash,
+                RefreshSession.revoked_at.is_(None),
+            )
+            .update({RefreshSession.revoked_at: now}, synchronize_session=False)
+        )
+        db.commit()
+
+        if not claimed:
+            # Someone else already consumed this token. Either it was replayed
+            # (theft) or two legitimate clients raced; both warrant dropping
+            # every session for the user rather than guessing.
             logger.warning(
                 "Replayed refresh token for user %s; revoking all sessions",
                 session.user_id,
@@ -348,16 +373,10 @@ class AuthService:
             )
             self.revoke_all_sessions(db, session.user_id)
             raise UnauthorizedError("Refresh token has already been used.")
-        if session.expires_at <= utcnow():
-            raise UnauthorizedError("Refresh session has expired.")
 
         user = self.get_by_id(db, session.user_id)
         if user is None or not user.is_active:
             raise UnauthorizedError("Account is no longer active.")
-
-        session.revoked_at = utcnow()
-        db.add(session)
-        db.commit()
 
         return self.issue_token_pair(
             db, user, user_agent=user_agent, client_ip=client_ip

@@ -388,3 +388,69 @@ class TestApiKeys:
             ).status_code
             == 200
         )
+
+
+class TestConcurrency:
+    """Refresh rotation must be atomic — one token, one new session.
+
+    Found during the M5 self-audit: the original implementation read
+    ``revoked_at``, decided, then wrote. Eight concurrent rotations of one
+    token produced three valid sessions. It is now a single conditional
+    ``UPDATE ... WHERE revoked_at IS NULL``, so exactly one caller wins.
+
+    This test uses a **file-backed** SQLite database on purpose. The suite's
+    default in-memory engine uses ``StaticPool``, which shares one connection
+    across every thread, so concurrent transactions are serialised and the race
+    cannot be observed.
+    """
+
+    def test_concurrent_rotation_yields_exactly_one_session(self, tmp_path, monkeypatch):
+        import concurrent.futures
+
+        from sqlalchemy import create_engine, event
+        from sqlalchemy.orm import sessionmaker
+
+        import app.domain.models  # noqa: F401
+        from app.infrastructure.config.settings import settings
+        from app.infrastructure.database.database import Base, apply_sqlite_pragmas
+        from app.services.security.auth_service import auth_service
+
+        monkeypatch.setattr(settings, "AUTH_ENABLED", True)
+        monkeypatch.setattr(settings, "AUTH_SECRET_KEY", "x" * 48)
+
+        engine = create_engine(
+            f"sqlite:///{tmp_path / 'race.db'}",
+            connect_args={"check_same_thread": False, "timeout": 10},
+        )
+        event.listen(engine, "connect", apply_sqlite_pragmas)
+        Base.metadata.create_all(bind=engine)
+        # No SessionLocal patching needed: AuthService takes its session as a
+        # parameter, so each thread below hands it an independent one.
+        factory = sessionmaker(bind=engine, expire_on_commit=False)
+
+        db = factory()
+        try:
+            user = auth_service.create_user(
+                db, username="racer", password=PASSWORD, role="admin"
+            )
+            token = auth_service.issue_refresh_token(db, user)
+        finally:
+            db.close()
+
+        def rotate():
+            session = factory()
+            try:
+                auth_service.rotate_refresh_token(session, token)
+                return True
+            except Exception:
+                return False
+            finally:
+                session.close()
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+            outcomes = [f.result() for f in [pool.submit(rotate) for _ in range(8)]]
+
+        assert sum(outcomes) == 1, (
+            f"expected exactly one rotation to succeed, got {sum(outcomes)}"
+        )
+        engine.dispose()

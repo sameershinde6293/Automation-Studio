@@ -1,8 +1,17 @@
 # Project Status
 
-**Current Status:** Bootstrapping Phase
-**Version:** 0.1.0-alpha
+**Current Status:** Infrastructure Phase Completed
+**Version:** 0.2.0-alpha
 
 ## Recent Updates
-- Initialized repository structure.
-- Defined high-level architecture.
+- Bootstrapped architecture.
+- Implemented infrastructure layer:
+  - SQLite database with SQLAlchemy
+  - Alembic migrations
+  - Repository Pattern
+  - Configuration service
+  - Logging service
+  - Event Bus
+  - APScheduler Job Scheduler
+  - Project & Plugin Services
+- Fixed build issues and tests.

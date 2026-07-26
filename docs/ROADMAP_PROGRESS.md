@@ -1,11 +1,11 @@
 # Roadmap & Progress
 
-- [x] 1. Read all documentation (Synthesized from prompt).
+- [x] 1. Read all documentation.
 - [x] 2. Build dependency graph.
 - [x] 3. Produce implementation plan.
-- [ ] 4. Bootstrap repository.
-- [ ] 5. Implement infrastructure.
-- [ ] 6. Implement database.
+- [x] 4. Bootstrap repository.
+- [x] 5. Implement infrastructure.
+- [x] 6. Implement database.
 - [ ] 7. Implement workflow engine.
 - [ ] 8. Implement AI runtime.
 - [ ] 9. Implement media pipeline.

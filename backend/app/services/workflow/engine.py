@@ -784,13 +784,39 @@ class WorkflowEngine:
     # ------------------------------------------------------------------ #
     # M4: queue-aware submission and execution control
     # ------------------------------------------------------------------ #
-    def ensure_workers(self) -> None:
-        """Start the worker pool lazily on the current event loop."""
+    def start_workers(self) -> bool:
+        """Start the execution worker pool. Called from the app lifespan.
+
+        Deliberately *not* called from request handlers: workers are long-lived
+        tasks, and creating them inside a request scope leaks tasks into that
+        request's lifetime (and hangs test clients that never run the lifespan).
+        """
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            logger.warning("start_workers() called without a running event loop.")
+            return False
         if self._pool is None:
             self._pool = WorkerPool(self._queue, self.run_execution_v2)
         if not self._pool.is_running:
             self._pool.start()
         execution_broker.bind_loop()
+        return self._pool.is_running
+
+    @property
+    def workers_running(self) -> bool:
+        return bool(self._pool is not None and self._pool.is_running)
+
+    def submit_v2(self, execution_id: int) -> asyncio.Task:
+        """Run an execution directly on the current loop via the M4 scheduler."""
+        existing = self.active_tasks.get(execution_id)
+        if existing and not existing.done():
+            logger.warning("Execution %s is already running.", execution_id)
+            return existing
+        task = asyncio.create_task(self.run_execution_v2(execution_id))
+        self.active_tasks[execution_id] = task
+        task.add_done_callback(lambda _t, eid=execution_id: self.active_tasks.pop(eid, None))
+        return task
 
     def enqueue(
         self,
@@ -799,13 +825,30 @@ class WorkflowEngine:
         priority: int = ExecutionPriority.NORMAL.value,
         workflow_id: Optional[int] = None,
     ) -> Dict[str, Any]:
-        """Admit an execution to the priority queue.
+        """Admit an execution for running.
 
-        Raises :class:`QueueFullError` (HTTP 429) when the queue is at capacity
-        rather than silently spawning unbounded tasks as M1 did.
+        When the worker pool is up (normal server operation) the run enters the
+        bounded priority queue and :class:`QueueFullError` (HTTP 429) is raised
+        at capacity, instead of the unbounded task spawning M1 did.
+
+        When no pool is running — an embedded/test host that never executed the
+        application lifespan — the run is submitted directly so behaviour
+        matches pre-M4. The caller can tell which happened from ``mode``.
         """
-        self.ensure_workers()
         control_registry.get_or_create(execution_id)
+        execution_broker.bind_loop()
+
+        if not self.workers_running:
+            self.submit_v2(execution_id)
+            return {
+                "execution_id": execution_id,
+                "mode": "direct",
+                "status": ExecutionStatus.PENDING.value,
+                "priority": priority,
+                "position": 0,
+                "queue_size": self._queue.size(),
+            }
+
         item = self._queue.put(
             execution_id, priority=priority, workflow_id=workflow_id
         )
@@ -826,6 +869,8 @@ class WorkflowEngine:
         )
         return {
             "execution_id": execution_id,
+            "mode": "queued",
+            "status": ExecutionStatus.QUEUED.value,
             "priority": item.priority,
             "position": position,
             "queue_size": self._queue.size(),

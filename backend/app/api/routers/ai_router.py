@@ -164,6 +164,56 @@ async def chat(req: ChatRequest):
     return await ai_orchestrator.chat(req.conversation_id, req.model_name, req.message, **req.options)
 
 
+class EstimateRequest(BaseModel):
+    text: str = Field("", description="Prompt text to price")
+    model_name: Optional[str] = Field(None, description="Model to price against")
+    prompt_tokens: Optional[int] = Field(
+        None, ge=0, description="Use instead of 'text' when the count is known"
+    )
+    completion_tokens: int = Field(0, ge=0, description="Expected completion tokens")
+
+
+@router.post("/estimate", summary="Estimate tokens and cost for a request")
+def estimate(payload: EstimateRequest) -> Dict[str, Any]:
+    """Token and USD cost estimate (M4).
+
+    Prices are list-price estimates from the cost model, not billing truth.
+    """
+    if not payload.text and payload.prompt_tokens is None:
+        raise ValidationError("Provide either 'text' or 'prompt_tokens'.")
+    return ai_orchestrator.estimate_cost(
+        payload.text,
+        model_name=payload.model_name,
+        prompt_tokens=payload.prompt_tokens,
+        completion_tokens=payload.completion_tokens,
+    )
+
+
+@router.get("/pricing", summary="Known model pricing")
+def pricing() -> List[Dict[str, Any]]:
+    return ai_orchestrator.cost_model.known_models()
+
+
+@router.get("/traces", summary="Recent AI execution traces")
+def traces(
+    limit: int = Query(50, ge=1, le=200),
+    only_failures: bool = Query(False),
+) -> Dict[str, Any]:
+    """Recent AI invocations, including every fallback attempt (M4).
+
+    Traces are held in a bounded in-memory ring buffer and are lost on restart.
+    """
+    return {
+        "items": ai_orchestrator.traces.recent(limit=limit, only_failures=only_failures),
+        "stats": ai_orchestrator.traces.stats(),
+    }
+
+
+@router.get("/health", summary="Provider availability and circuit-breaker state")
+def ai_health() -> Dict[str, Any]:
+    return ai_orchestrator.health()
+
+
 @router.get("/usage", summary="List token usage rows")
 def usage(model_name: Optional[str] = Query(None), db: Session = Depends(get_db)):
     query = db.query(token_usage_repo.model)

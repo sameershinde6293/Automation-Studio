@@ -46,6 +46,20 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.exception("Job scheduler failed to start; continuing without it.")
 
+    # M4: start the execution worker pool on the serving loop. Workers are
+    # long-lived tasks, so they must be owned by the app lifespan rather than
+    # created lazily inside a request.
+    try:
+        from app.services.workflow.engine import workflow_engine
+
+        if workflow_engine.start_workers():
+            logger.info(
+                "Execution worker pool started (%s workers).",
+                settings.EXECUTION_MAX_WORKERS,
+            )
+    except Exception:
+        logger.exception("Execution worker pool failed to start.")
+
     plugin_sdk.trigger_hook(plugin_sdk.HOOK_APP_STARTUP)
 
     app.state.started_at = time.time()
@@ -135,6 +149,7 @@ def create_app() -> FastAPI:
     from app.api.routers import (
         ai_router,
         enterprise_router,
+        execution_router,
         media_router,
         plugin_router,
         project_router,
@@ -144,6 +159,7 @@ def create_app() -> FastAPI:
 
     application.include_router(project_router.router, prefix="/api")
     application.include_router(workflow_router.router, prefix="/api")
+    application.include_router(execution_router.router, prefix="/api")
     application.include_router(ai_router.router, prefix="/api")
     application.include_router(media_router.router, prefix="/api")
     application.include_router(plugin_router.router, prefix="/api")

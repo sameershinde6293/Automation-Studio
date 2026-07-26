@@ -11,7 +11,7 @@
  * HTTP 422. This module is the single place that conversion happens.
  */
 
-import { WorkflowEdge, WorkflowNode } from '../types/workflow';
+import type { WorkflowEdge, WorkflowNode } from '../types/workflow';
 
 export interface BackendNodePayload {
   id: number;

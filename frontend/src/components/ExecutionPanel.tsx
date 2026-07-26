@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { useExecutionStore, NodeRunStatus } from '../stores/executionStore';
+import { useExecutionStore } from '../stores/executionStore';
+import type { NodeRunStatus } from '../stores/executionStore';
 import { useWorkflowStore } from '../stores/workflowStore';
 import { ExecutionControls } from './execution/ExecutionControls';
 import { ExecutionProgressBar } from './execution/ExecutionProgress';

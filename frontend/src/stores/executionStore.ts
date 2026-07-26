@@ -10,13 +10,18 @@
  */
 
 import { create } from 'zustand';
-import {
+// Types are erased at build time, so they must be imported with `import type`.
+// Mixing them into the value import made Rollup warn that these names are not
+// exported by the module (they exist only in the type namespace).
+import type {
   ExecutionDetail,
   ExecutionEvent,
   ExecutionStatus,
   ExecutionSummary,
   LogRecord,
   StreamHandle,
+} from '../api/executionApi';
+import {
   cancelExecution,
   getExecution,
   getLogs,

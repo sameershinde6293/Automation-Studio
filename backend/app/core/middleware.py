@@ -32,6 +32,35 @@ from app.infrastructure.observability.metrics import (
 
 logger = get_logger("http")
 
+#: Version prefixes the application mounts every router under, in addition to
+#: the unprefixed ``/api``. Kept here so path-matching security controls can be
+#: written once against a logical path.
+_API_VERSION_PREFIXES = ("/api/v1",)
+
+
+def canonical_path(path: str) -> str:
+    """Collapse a versioned API path onto its unprefixed equivalent.
+
+    ``main.create_app`` serves every router twice — at ``/api/...`` and at
+    ``/api/v1/...`` — so a control that matches on the literal ``/api/auth``
+    prefix silently does not apply to the version-pinned alias that clients are
+    told to use.
+
+    The M6 audit confirmed four such bypasses (finding M6-F2): the stricter
+    login rate-limit budget, the CSRF exemption for login/refresh, the
+    ``Cache-Control: no-store`` header on credential responses, and the body-
+    size exemption for media upload. Normalising the path once, here, fixes all
+    four and makes any future ``/api/v2`` mount safe by construction.
+
+    ``/api/v1/auth/login`` -> ``/api/auth/login``; every other path unchanged.
+    """
+    for prefix in _API_VERSION_PREFIXES:
+        if path == prefix:
+            return "/api"
+        if path.startswith(prefix + "/"):
+            return "/api" + path[len(prefix):]
+    return path
+
 
 class RequestContextMiddleware(BaseHTTPMiddleware):
     """Assign a request id, expose it on ``request.state`` and response headers,
@@ -163,8 +192,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         )
         headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
         headers.setdefault("Cross-Origin-Resource-Policy", "same-origin")
-        # Credentials must never be cached by an intermediary.
-        if request.url.path.startswith("/api/auth"):
+        # Credentials must never be cached by an intermediary. Matched on the
+        # canonical path so /api/v1/auth/... is covered too (M6-F2).
+        if canonical_path(request.url.path).startswith("/api/auth"):
             headers.setdefault("Cache-Control", "no-store")
             headers.setdefault("Pragma", "no-cache")
         if self.hsts:
@@ -211,7 +241,10 @@ class CSRFMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
         if request.method in self.SAFE_METHODS:
             return await call_next(request)
-        if request.url.path.startswith(self.exempt_paths):
+        # Canonicalised so the /api/v1 alias honours the same exemptions;
+        # without this, cookie-session login and refresh returned 403 on the
+        # versioned path (M6-F2).
+        if canonical_path(request.url.path).startswith(self.exempt_paths):
             return await call_next(request)
 
         # Header-based credentials cannot be replayed cross-site by a browser.
@@ -258,7 +291,11 @@ class BodySizeLimitMiddleware(BaseHTTPMiddleware):
         self.exempt_paths = tuple(exempt_paths)
 
     async def dispatch(self, request: Request, call_next) -> Response:
-        if self.exempt_paths and request.url.path.startswith(self.exempt_paths):
+        # Canonicalised: /api/v1/media/upload must get the same large-body
+        # exemption as /api/media/upload, which it previously did not (M6-F2).
+        if self.exempt_paths and canonical_path(request.url.path).startswith(
+            self.exempt_paths
+        ):
             return await call_next(request)
         content_length = request.headers.get("content-length")
         if content_length:
@@ -361,7 +398,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         return self.max_requests, self.window_seconds, ""
 
     async def dispatch(self, request: Request, call_next) -> Response:
-        path = request.url.path
+        # The canonical path is what the budget is selected against, so the
+        # stricter credential-endpoint limit cannot be evaded by inserting a
+        # version segment into the URL (M6-F2).
+        path = canonical_path(request.url.path)
         if path in self.exempt_paths:
             return await call_next(request)
 

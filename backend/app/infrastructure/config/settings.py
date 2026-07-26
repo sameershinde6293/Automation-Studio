@@ -62,8 +62,6 @@ class Settings(BaseSettings):
     EXECUTION_QUEUE_MAX_SIZE: int = 1000
     #: Whole-workflow wall-clock timeout.
     EXECUTION_TIMEOUT_SECONDS: float = 3600.0
-    #: How long a PAUSED execution may sit before being auto-cancelled.
-    EXECUTION_MAX_PAUSE_SECONDS: float = 86400.0
     #: Poll interval used while an execution is paused.
     EXECUTION_PAUSE_POLL_SECONDS: float = 0.25
     #: Maximum iterations for a single loop node (guards runaway loops).

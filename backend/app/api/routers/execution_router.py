@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.errors import ConflictError, NotFoundError, ValidationError
-from app.domain.models.workflow import ExecutionPriority, ExecutionStatus
+from app.domain.models.workflow import ExecutionStatus
 from app.domain.repositories.workflow_repository import workflow_execution_repo
 from app.infrastructure.config.settings import settings
 from app.infrastructure.database.database import get_db

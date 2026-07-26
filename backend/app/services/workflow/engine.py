@@ -27,7 +27,6 @@ import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
-from app.core.errors import ExecutionError
 from app.domain.models.workflow import (
     ExecutionPriority,
     ExecutionStatus,
@@ -39,7 +38,6 @@ from app.domain.repositories.workflow_repository import (
     node_execution_repo,
     node_repo,
     workflow_execution_repo,
-    workflow_repo,
 )
 from app.infrastructure.config.settings import settings
 from app.infrastructure.database.database import SessionLocal
@@ -52,11 +50,10 @@ from .graph import (
     descendants,
     is_loop_edge,
     loop_body,
-    split_loop_edges,
     validate_graph,
     validate_graph_with_loops,
 )
-from .queue import ExecutionQueue, QueueFullError, WorkerPool, execution_queue
+from .queue import ExecutionQueue, WorkerPool
 from .runtime import (
     NodeContext,
     NodeErrorCode,
@@ -1659,7 +1656,7 @@ class WorkflowEngine:
                     )
                     raise
 
-                except asyncio.TimeoutError as exc:
+                except asyncio.TimeoutError:
                     last_error = f"Node timed out after {timeout}s"
                     last_code = NodeErrorCode.TIMEOUT
                 except Exception as exc:  # noqa: BLE001 - executor errors are data

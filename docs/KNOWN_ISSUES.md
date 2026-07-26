@@ -1,6 +1,6 @@
 # Known Issues
 
-Status as of V1.1 Milestone 1 (2026-07-26).
+Status as of V1.1 Milestone 2 (2026-07-26).
 
 ## Resolved in V1.1
 
@@ -21,6 +21,10 @@ Status as of V1.1 Milestone 1 (2026-07-26).
 | No per-node timeout — a hung node hung the workflow forever | High | Configurable timeout, default 300s (M1) |
 | Unbounded node concurrency on wide fan-outs | High | `WORKFLOW_MAX_PARALLEL_NODES` semaphore (M1) |
 | Build artifacts and the local DB were tracked in Git | Medium | Untracked, `.gitignore` hardened (M1) |
+| AI conversation history was not context-window trimmed | High | Message/token-budget trimming added (M2) |
+| Video/audio media processing was a mock `asyncio.sleep` | High | FFmpeg/ffprobe probe/poster pipeline with fallback added (M2) |
+| Media asset `file_path` was not path-traversal validated | High | MEDIA_ROOT-only resolver blocks traversal, absolute paths, null bytes and symlink escapes (M2) |
+| Media processing ran inside the HTTP request | High | Bounded background worker queue; process endpoint returns `202 Accepted` (M2) |
 
 ## Open
 
@@ -29,10 +33,6 @@ Status as of V1.1 Milestone 1 (2026-07-26).
 | No authentication/authorization on API endpoints | High | M7 |
 | AI streaming (`generate_stream`) not implemented for OpenAI/Ollama | High | M4 |
 | AI embeddings not implemented for OpenAI/Ollama | High | M4 |
-| AI conversation history is not context-window trimmed | High | M4 |
-| Video/audio media processing is still a mock `asyncio.sleep` | High | M5 |
-| Media asset `file_path` is not path-traversal validated | High | M5 |
-| Media processing runs inside the HTTP request (blocks the worker) | High | M5 |
 | No workflow editor UI — the Workflows tab is static text | High | M3 |
 | Zero frontend tests | High | M6 |
 | Electron has no preload script, CSP or navigation guards | High | M6 |
@@ -44,5 +44,6 @@ Status as of V1.1 Milestone 1 (2026-07-26).
   environments. Use `ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm install` to install
   dependencies; this is sufficient for `npm run build` and unit tests, but not
   for launching the desktop shell.
-- **FFmpeg** is not bundled. Video/audio pipeline features planned for M5 will
-  degrade gracefully when `ffmpeg`/`ffprobe` are absent from `PATH`.
+- **FFmpeg** is optional. M2 media processing degrades gracefully when
+  `ffmpeg`/`ffprobe` are absent from `PATH`; image metadata and Pillow poster
+  generation still work without FFmpeg.

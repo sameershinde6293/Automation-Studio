@@ -2,6 +2,28 @@
 
 ## [1.1.0] - 2026-07-26 (in progress)
 
+### Milestone 2 — Service completion: AI runtime and media pipeline
+
+#### AI Runtime
+- Added conversation CRUD, message append/list endpoints, complete model registry CRUD, provider introspection, chat completion response metadata, token usage rows and aggregate token reporting.
+- Added validation for model types, providers, message roles and empty chat input.
+- Added context-window trimming by message count and estimated token budget while preserving the leading system prompt and most recent turns.
+- Preserved V1.0 orchestrator string-compatibility while returning richer API metadata.
+
+#### Media System
+- Added secure media asset CRUD with upload, registration, download, update, delete and list endpoints.
+- Restricted all storage operations to `MEDIA_ROOT`, rejecting path traversal, absolute path escapes, Windows drive escapes, null bytes and symlink escapes.
+- Added streaming upload size enforcement, SHA-256 hashing and MIME/media-type detection from file content.
+
+#### Media Processing / FFmpeg
+- Moved media processing to a bounded background worker pool with job status/progress reporting.
+- `POST /api/media/{asset_id}/process` now returns `202 Accepted`; `wait=true` remains available for compatibility.
+- Added `ffprobe` metadata extraction, `ffmpeg` video poster generation, Pillow image poster generation and structured graceful fallbacks when FFmpeg is absent or a file cannot be probed.
+- Added Alembic migration `b7d9f8a2c1e3` for media asset content metadata and processing-job progress/results.
+
+#### Tests
+- Backend suite grown from **425 to 825 tests**; coverage **91% → 94%**.
+
 ### Milestone 1 — Backend core hardening
 
 #### Security

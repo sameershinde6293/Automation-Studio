@@ -695,10 +695,19 @@ executor_registry = ExecutorRegistry()
 def _register_m4_library() -> None:
     """Register the M4 node library into the shared registry.
 
-    Imported lazily and guarded so a failure here degrades to "the M4 nodes are
-    unavailable" rather than breaking the whole application import.
+    ``RuntimeNodeExecutor`` is declared a virtual subclass of
+    ``BaseNodeExecutor`` here (rather than inheriting directly) so that
+    ``runtime`` never has to import ``executors`` at class-creation time; that
+    would be circular, since this module imports ``runtime``.
+
+    Guarded so a failure degrades to "the M4 nodes are unavailable" rather than
+    breaking the whole application import.
     """
     try:
+        from app.services.workflow.runtime import RuntimeNodeExecutor
+
+        BaseNodeExecutor.register(RuntimeNodeExecutor)
+
         from app.services.workflow.nodes import register_all
 
         registered = register_all(executor_registry)

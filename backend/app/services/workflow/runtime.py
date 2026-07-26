@@ -502,24 +502,18 @@ class NodeContext(dict):
 # --------------------------------------------------------------------------- #
 # Runtime executor base
 # --------------------------------------------------------------------------- #
-def _base_executor_class():
-    """Import ``BaseNodeExecutor`` lazily to avoid a circular import.
-
-    ``executors`` imports this module for error types, so the inheritance link
-    has to be resolved at class-creation time rather than module import time.
-    """
-    from app.services.workflow.executors import BaseNodeExecutor
-
-    return BaseNodeExecutor
-
-
-class RuntimeNodeExecutor(_base_executor_class()):  # type: ignore[misc]
+class RuntimeNodeExecutor:
     """Base class for M4 node executors.
 
-    Subclasses ``BaseNodeExecutor`` so the M1 ``ExecutorRegistry`` accepts these
-    nodes unchanged, then layers schema-driven validation, metrics and error
-    classification on top. Subclasses implement :meth:`run` rather than
-    :meth:`execute`.
+    Implements the same ``execute(node, context)`` contract as M1's
+    ``BaseNodeExecutor`` and is registered as a *virtual* subclass of it from
+    ``executors._register_m4_library``. Virtual registration is deliberate:
+    inheriting directly would force this module to import ``executors`` at
+    class-creation time, and ``executors`` imports this module back, producing
+    a circular import whenever ``runtime`` is loaded first.
+
+    Layers schema-driven validation, metrics and error classification on top of
+    the base contract. Subclasses implement :meth:`run`, not :meth:`execute`.
     """
 
     label: str = "Node"

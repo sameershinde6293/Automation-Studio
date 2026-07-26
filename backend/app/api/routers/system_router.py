@@ -76,6 +76,27 @@ def node_types() -> List[Dict[str, Any]]:
     return executor_registry.catalog()
 
 
+@router.get("/node-schemas", summary="Node input/output schemas")
+def node_schemas(
+    include_aliases: bool = Query(
+        False, description="Include snake_case aliases of canonical node types"
+    ),
+    category: str = Query("", description="Optional category filter"),
+) -> List[Dict[str, Any]]:
+    """Full input and output schemas per node type (M4).
+
+    The editor uses this to render typed property forms and to validate a node
+    before the workflow is run. ``/node-types`` remains the lighter palette
+    endpoint and is unchanged.
+    """
+    entries = executor_registry.schemas()
+    if not include_aliases:
+        entries = [e for e in entries if not e.get("is_alias")]
+    if category:
+        entries = [e for e in entries if e.get("category") == category]
+    return entries
+
+
 @router.get("/events", summary="Recent in-process events")
 def recent_events(
     limit: int = Query(50, ge=1, le=200),

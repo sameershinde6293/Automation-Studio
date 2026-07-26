@@ -29,6 +29,12 @@ frontend/dist-electron-app/
 frontend/coverage/
 *.tsbuildinfo
 
+# Test/build caches (M4: vitest, coverage reporters)
+coverage/
+.vitest/
+.vite/
+.nyc_output/
+
 # Runtime data
 backend/data/
 backend/media_storage/

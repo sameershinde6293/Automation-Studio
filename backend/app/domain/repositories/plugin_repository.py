@@ -13,6 +13,10 @@ class PluginUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 class PluginRepository(BaseRepository[Plugin, PluginCreate, PluginUpdate]):
-    pass
+    def get_by_name(self, db, name: str) -> Optional[Plugin]:
+        return db.query(self.model).filter(self.model.name == name).first()
+
+    def get_active(self, db) -> list[Plugin]:
+        return db.query(self.model).filter(self.model.is_active.is_(True)).all()
 
 plugin_repo = PluginRepository(Plugin)

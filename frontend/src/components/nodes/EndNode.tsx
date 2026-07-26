@@ -1,12 +1,13 @@
 import React from 'react';
-import { Handle, Position } from 'reactflow';
 import { Square } from 'lucide-react';
+import { BaseNode } from './BaseNode';
 
-export const EndNode = ({ data }: any) => (
-  <div className="node end-node" style={{ background: '#ef4444', padding: '10px', borderRadius: '8px', color: 'white' }}>
-    <Handle type="target" position={Position.Left} />
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-      <Square size={16} /> <strong>{data.label || 'End'}</strong>
-    </div>
-  </div>
+export const EndNode = (props: any) => (
+  <BaseNode
+    {...props}
+    icon={<Square size={16} />}
+    color="#ef4444"
+    inputs={['in']}
+    configFields={[{ key: 'label', label: 'Label', type: 'text', default: 'End' }]}
+  />
 );

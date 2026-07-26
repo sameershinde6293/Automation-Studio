@@ -1,12 +1,13 @@
 import React from 'react';
-import { Handle, Position } from 'reactflow';
 import { Play } from 'lucide-react';
+import { BaseNode } from './BaseNode';
 
-export const StartNode = ({ data }: any) => (
-  <div className="node start-node" style={{ background: '#22c55e', padding: '10px', borderRadius: '8px', color: 'white' }}>
-    <Handle type="source" position={Position.Right} />
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-      <Play size={16} /> <strong>{data.label || 'Start'}</strong>
-    </div>
-  </div>
+export const StartNode = (props: any) => (
+  <BaseNode
+    {...props}
+    icon={<Play size={16} />}
+    color="#22c55e"
+    outputs={['out']}
+    configFields={[{ key: 'name', label: 'Workflow Name', type: 'text', default: 'Main' }]}
+  />
 );

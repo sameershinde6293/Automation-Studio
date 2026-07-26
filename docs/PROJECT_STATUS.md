@@ -2,99 +2,111 @@
 
 **Current phase:** Version 1.1 development
 **Version:** 1.1.0 (in progress)
-**Last updated:** 2026-07-26
+**Last updated:** 2026-07-26 (M5)
 
 ## Milestone progress
 
 | # | Milestone | Status |
 | --- | --- | --- |
-| M0 | Repair & hygiene | ✅ Complete |
-| M1 | Backend core hardening | ✅ Complete |
+| M0 | Repair & hygiene | ✅ Complete (merged) |
+| M1 | Backend core hardening | ✅ Complete (merged) |
 | M2 | API expansion & service completion | ✅ Complete (merged, PR #3) |
 | M3 | Drag-and-drop Workflow Editor | ✅ Complete (merged, PR #4) |
-| M4 | Execution engine & AI orchestration | ✅ Complete (this branch) |
-| M5 | Advanced Media Pipeline UX | ⬜ Planned |
-| M6 | UI/UX polish + accessibility | ⬜ Planned |
-| M7 | Performance, security, docs, CI | ⬜ Planned |
+| M4 | Execution engine & AI orchestration | ✅ Complete (merged, PR #5) |
+| M5 | Production readiness & platform hardening | ✅ Complete (this branch) |
+| M6 | Durable queue & horizontal scaling | ⬜ Planned |
+| M7 | Media pipeline UX & first-party providers | ⬜ Planned |
 
-## Health
+## Health — all figures measured, not estimated
 
-| Metric | V1.0 (as found) | Now |
-| --- | --- | --- |
-| Backend build | ✅ | ✅ |
-| Frontend build | ❌ broken (TS1005) | ✅ |
-| Backend tests | 19 passed / **1 failed** | **1085 passed / 0 failed** |
-| Backend coverage | 82% | 94% (M2 measurement; not re-measured in M4) |
-| Frontend tests | none | **105 passed / 0 failed** |
-| Frontend typecheck | ❌ broken | ✅ `tsc --noEmit` clean |
-| Alembic migrations | not exercised | ✅ M0–M4 migrations present (M4: `c4e7a1b90d52`) |
-| Critical security issues | 4 open | **0 open** |
+| Metric | V1.0 (as found) | After M4 | Now (M5) |
+| --- | --- | --- | --- |
+| Backend build | ✅ | ✅ | ✅ |
+| Frontend build | ❌ broken (TS1005) | ✅ | ✅ **warning-free** |
+| Backend tests | 19 passed / 1 failed | 1085 passed | **1313 passed / 0 failed** |
+| Backend coverage | 82% | not re-measured | **89%** (re-measured this milestone) |
+| Frontend tests | none | 105 passed | **179 passed / 0 failed** |
+| Frontend typecheck | ❌ broken | ✅ | ✅ |
+| Alembic migrations | not exercised | present, never run in CI | **✅ upgrade/downgrade round-trip tested** |
+| Authentication | none | none | **✅ implemented** |
+| RBAC enforcement | none | defined but never called | **✅ enforced per endpoint** |
+| Deployment assets | none | none | **✅ written, not yet executed** |
+| CI | never run | never run | **still never run** (needs a maintainer) |
 
-## Recent work (M4)
+Backend 22,700 LOC · frontend 4,900 LOC (excluding dependencies).
 
-Turned the visual editor into an executable platform. The execution engine gained
-conditional branch gating, bounded loops, pause/resume/graceful stop, a bounded
-priority queue with a worker pool, and per-node metrics. A unified node runtime
-with declarative schemas now backs all 23 editor node types — before M4 the
-editor's palette and the backend registry intersected on `{delay}` only, so
-**no editor-built workflow could be saved or run**. Real-time feedback arrives
-over SSE with bounded subscriber queues and durable, batched execution logs. AI
-orchestration gained provider fallback, a working circuit breaker, cost
-estimation and tracing. The frontend gained execution controls, live node state,
-a streaming log viewer and a history panel with replay.
+## Recent work (M5)
 
-Frontend testing existed only on paper before M4: five vitest files were
-committed in M3 with no runner, no dependencies and no `test` script. Wiring up
-vitest immediately exposed two real M3 defects (undo/redo never worked; the
-BaseNode config test asserted nothing about the store).
+Turned a functional application into a deployable platform. A full audit
+(`M5_GAP_ANALYSIS.md`) preceded any code, and rated baseline production
+readiness at ~35%: the application layer was strong, the platform layer was
+close to absent.
 
-### M4 verification
+**Security.** The platform had no notion of who was calling it — all ~80
+endpoints were anonymous, and the RBAC model defined in M0 was never once
+enforced. M5 added users, API keys and refresh sessions, PBKDF2 password
+hashing, dependency-free HS256 JWTs with algorithm pinning, and permission
+dependencies applied per endpoint. API-key scopes intersect the owner's role so
+they can only narrow authority. Added CSRF, trusted hosts, HSTS and
+credential-keyed rate limiting.
+
+**Sandbox.** Python nodes now run in a separate OS process with kernel-enforced
+CPU and memory limits, closing two defects M4 could not: an infinite loop
+pinned a core for the life of the backend, and a large allocation OOM-killed
+the whole service. A PEP 578 audit hook — not the import allowlist — is the
+enforcement boundary, and post-escape containment is tested. It is documented
+as defence in depth, **not** a security boundary.
+
+**Database.** `audit_events` had been an ORM model since V1.0 with no migration
+at all, so migration-only deployments started without the table. Fixed, and a
+test now asserts every ORM table has a migration.
+
+**Frontend.** The Workflows tab rendered placeholder text, so the entire M3/M4
+editor was unreachable from the running app. Mounting it exposed that **20 of
+the 22 node component files had been committed as zero-byte files** — invisible
+because they were never bundled. All 20 are implemented and tested.
+
+### M5 verification
 
 | Check | Result |
 | --- | --- |
-| Backend tests | 1085 passed (825 pre-existing + 260 new) |
-| Frontend tests | 105 passed (was 0 runnable) |
+| Backend tests | 1313 passed (1085 pre-existing, unmodified + 228 new) |
+| Backend coverage | 89% |
+| Frontend tests | 179 passed (105 pre-existing + 74 new) |
 | Frontend typecheck | `tsc --noEmit` clean |
-| Frontend build | `vite build` succeeds |
-| Pre-existing tests modified | none |
+| Frontend build | `vite build` clean, no warnings |
+| Migrations | upgrade → downgrade → re-upgrade verified on SQLite |
+| Sandbox containment | verified, including post-escape |
+| Docker images | **not built** — no container runtime available |
+| Multi-process deployment | **not tested** — known to be unsupported |
 
-### M4 known limitations
+### M5 known limitations
 
-- Single-process execution only; the in-memory queue does not survive restart.
-- `python`/`javascript` nodes are restricted interpreters, **not** sandboxes,
-  and ship disabled.
-- Resume-failed re-traverses the graph rather than resuming mid-graph.
-- The engine's global write lock still serialises node status writes.
-- No inbound webhook triggers; no image/TTS/STT provider ships by default.
-- Backend coverage was not re-measured in M4; the 94% figure is from M2.
-
-## Previous work (M2)
-
-Completed the M2 service layer for the AI runtime and media system. AI now has
-conversation CRUD, message endpoints, model registry CRUD, provider
-introspection, validated chat completions, context trimming and token usage
-reporting. Media now has secure asset CRUD constrained to `MEDIA_ROOT`, streaming
-upload enforcement, content-based MIME detection, secure download/delete, a
-bounded background processing pool, progress-reporting jobs, `202 Accepted`
-processing semantics with optional `wait=true`, and FFmpeg/ffprobe integration
-with graceful fallback.
-
-## Previous work (M1)
-
-Fixed two critical security holes (shell RCE, HTTP SSRF) and three critical
-correctness bugs (engine busy-wait, parallel-write data corruption, discarded
-falsy outputs). Added a typed error hierarchy, structured logging with secret
-redaction, request correlation, security middleware, rate limiting, SQLite WAL
-tuning, indices on all hot foreign keys, six new node types with inter-node
-templating, and the complete node/edge/execution CRUD surface the V1.1 visual
-editor will persist against.
+- Single-process execution only. The queue is in-memory, lost on restart, and
+  running >1 replica risks double execution. Rate limiting and SSE fan-out are
+  likewise per-process.
+- RBAC is global; no per-workflow ownership or tenancy.
+- The JavaScript node is not sandboxed. The Python sandbox is defence in depth,
+  not a security boundary.
+- Audit coverage is partial (auth and user administration) and not
+  tamper-evident.
+- Deployment assets are written but have never been executed end to end.
+- CI has still never run; activation needs a maintainer to move the workflow
+  into `.github/workflows/`.
+- No external security review or penetration test has been performed.
 
 ## Estimated overall completion
 
-**≈ 80%** toward a polished commercial-grade Creator OS.
+**≈ 88%** toward a polished commercial-grade Creator OS, and **≈ 72%** toward
+genuine production readiness for a multi-user deployment.
 
-The core loop — design a workflow, run it, watch it, control it, inspect and
-replay it — is complete and tested. Remaining work is breadth (media UX,
-first-party AI/speech providers, inbound triggers), operational hardening
-(multi-process execution, durable queue, true mid-graph resume) and polish
-(accessibility, packaging, CI).
+The core loop — design, run, watch, control, inspect, replay — is complete and
+tested, and the platform now has identity, enforcement, observability and
+deployment assets. What separates it from production-ready is operational
+proof rather than missing features: the containers have not been run, CI has
+not executed, and the single-process constraint must be lifted before the
+platform can scale or survive a restart without losing queued work.
+
+## Previous work
+
+See `CHANGELOG.md` for M0–M4.

@@ -1,21 +1,148 @@
 # API Documentation
 
-Creator OS exposes a local HTTP API on `http://localhost:8000` when the desktop app is running.
+Creator OS exposes an HTTP API on `http://localhost:8000` when the backend is
+running. Interactive docs are at `/docs` when `ENABLE_DOCS=true` (disable this
+in production).
 
-All application errors use the stable envelope:
+## Versioning
+
+Every route is served at **two** paths:
+
+| Form | Example | Stability |
+| --- | --- | --- |
+| Unprefixed | `/api/workflows/` | Permanently supported (V1.0 compatibility) |
+| Version-pinned | `/api/v1/workflows/` | Recommended for new clients |
+
+They are the same handlers. A future breaking revision would appear as
+`/api/v2` while both existing forms keep working.
+
+## Authentication
+
+Authentication is **disabled by default** (`AUTH_ENABLED=false`), matching the
+single-user desktop product: every caller is treated as a local admin and no
+credential is needed. It is **required in production** — the backend refuses to
+start otherwise.
+
+When enabled, present either:
+
+```http
+Authorization: Bearer <access_token>
+X-API-Key: cos_<key>
+```
+
+Bearer tokens take precedence. `GET /api/auth/me` always answers, even
+anonymously, so a client can discover whether auth is on before prompting.
+
+### Roles and permissions
+
+| Role | Permissions |
+| --- | --- |
+| `admin` | read, write, execute, manage_users, manage_plugins, manage_settings, view_audit |
+| `editor` | read, write, execute |
+| `operator` | read, execute |
+| `viewer` | read |
+
+API keys may carry **scopes**, which intersect the owner's role permissions —
+a key can only ever narrow authority, never widen it.
+
+### Auth endpoints
+
+- `POST /api/auth/login` — exchange credentials for a token pair
+- `POST /api/auth/refresh` — rotate a refresh token (the presented token is consumed)
+- `POST /api/auth/logout` — revoke one session
+- `POST /api/auth/logout-all` — revoke every session for the caller
+- `POST /api/auth/register` — self-registration (403 unless `AUTH_ALLOW_SELF_REGISTRATION`)
+- `GET  /api/auth/me` — current caller, role and effective permissions
+- `POST /api/auth/password` — change password (requires the current one; revokes sessions)
+- `GET  /api/auth/users` — list users · `manage_users`
+- `POST /api/auth/users` — create a user · `manage_users`
+- `PATCH /api/auth/users/{user_id}` — change role or active state · `manage_users`
+- `GET  /api/auth/api-keys` — list the caller's keys (never returns the secret)
+- `POST /api/auth/api-keys` — create a key (**plaintext returned once**)
+- `DELETE /api/auth/api-keys/{key_id}` — revoke a key
+
+```bash
+curl -X POST http://localhost:8000/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"..."}'
+```
 
 ```json
-{"error": {"code": "not_found", "message": "...", "request_id": "..."}}
+{
+  "access_token": "eyJ...",
+  "refresh_token": "eyJ...",
+  "token_type": "bearer",
+  "expires_in": 900,
+  "user": {"id": 1, "username": "admin", "role": "admin", "permissions": ["read", "..."]}
+}
 ```
+
+## Errors
+
+All errors use one envelope:
+
+```json
+{"error": {"code": "not_found", "message": "...", "details": {}, "request_id": "..."}}
+```
+
+| Status | Code | Meaning |
+| --- | --- | --- |
+| 401 | `unauthorized` | Missing or invalid credential |
+| 403 | `forbidden` | Authenticated but lacking the permission (`details.required_permission`) |
+| 403 | `csrf_failed` | Cookie session without a matching CSRF header |
+| 404 | `not_found` | No such resource |
+| 409 | `conflict` | Duplicate or state conflict |
+| 413 | `payload_too_large` | Body exceeds `MAX_REQUEST_BYTES` |
+| 422 | `validation_error` | Request body failed validation (`details.errors`) |
+| 429 | `rate_limited` | Throttled; see `Retry-After` |
+| 500 | `internal_error` | Unexpected failure. Internal detail is never returned — quote `request_id` |
+
+## Request headers and correlation
+
+| Header | Direction | Purpose |
+| --- | --- | --- |
+| `X-Request-ID` | both | Per-request id; generated when absent, echoed back |
+| `X-Correlation-ID` | both | Spans several requests in one logical operation; defaults to the request id |
+| `X-Response-Time-ms` | response | Server-side duration |
+| `X-RateLimit-Limit` / `-Remaining` | response | Current budget |
+| `X-CSRF-Token` | request | Required only for cookie-authenticated unsafe methods |
+
+## Rate limiting
+
+300 requests/minute by default, keyed by credential where present and client
+address otherwise. `/api/auth/login` and `/api/auth/register` have a separate,
+stricter budget (10/minute). Health probes and `/metrics` are exempt.
+
+> Limits are enforced **per process**. Running multiple workers multiplies the
+> effective limit.
+
+## Pagination
+
+List endpoints take `skip` (≥0) and `limit` (1–500, endpoint-specific
+defaults). Newer endpoints return an envelope with a total:
+
+```json
+{"items": [...], "total": 137, "skip": 0, "limit": 50}
+```
+
+Older list endpoints return a bare array; this is preserved for backward
+compatibility.
 
 ## General
 
 - `GET /` - Root status
 - `GET /health` - V1-compatible health check
-- `GET /health/live` - Liveness probe
-- `GET /health/ready` - Readiness probe with database/scheduler checks
-- `GET /api/system/info` - Runtime/build information
-- `GET /api/system/metrics` - Lightweight process metrics
+- `GET /health/live` - Liveness probe (does not touch the database)
+- `GET /health/ready` - Readiness probe: database, scheduler, execution workers
+  and configuration findings. **Returns 503 when degraded.**
+- `GET /metrics` - Prometheus text exposition (`METRICS_ENABLED`, optionally
+  gated on `manage_settings`)
+- `GET /api/system/info` - Runtime/build information, feature flags and script
+  sandbox status
+- `GET /api/system/metrics` - Lightweight process metrics (JSON)
+- `GET /api/system/config/validation` - Startup configuration findings ·
+  `manage_settings`
+- `GET /api/system/errors` - Aggregated recent errors · `view_audit`
 - `GET /api/system/node-types` - Workflow node catalog
 - `GET /api/system/node-schemas` - Typed input/output schemas per node type (M4)
   - Query: `include_aliases=false`, `category=<control|ai|network|data|script|io|media|integration>`

@@ -325,5 +325,3 @@ class WorkerPool:
         with self._lock:
             self._active.clear()
 
-
-execution_queue = ExecutionQueue()

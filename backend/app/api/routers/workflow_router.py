@@ -267,7 +267,6 @@ def validate_workflow(workflow_id: int, db: Session = Depends(get_db)) -> Dict[s
     nodes = node_repo.get_by_workflow(db, workflow_id)
     edges = edge_repo.get_by_workflow(db, workflow_id)
     node_ids = [n.id for n in nodes]
-    pairs = [(e.source_id, e.target_id) for e in edges]
 
     # M4: loop-labelled back-edges are legal; validate with loop awareness and
     # compute layers from the forward-only sub-graph.

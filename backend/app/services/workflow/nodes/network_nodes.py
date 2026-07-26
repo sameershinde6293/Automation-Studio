@@ -24,7 +24,6 @@ from app.services.workflow.runtime import (
     FieldSpec,
     NodeErrorCode,
     NodeExecutionError,
-    NodeResult,
     NodeSchema,
     RuntimeNodeExecutor,
 )

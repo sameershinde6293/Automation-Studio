@@ -11,8 +11,7 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 from app.core.errors import ValidationError
-from app.infrastructure.config.settings import settings
-from app.services.workflow.executors import render_template, render_value
+from app.services.workflow.executors import render_template
 from app.services.workflow.runtime import (
     FieldSpec,
     NodeContext,

@@ -2,15 +2,12 @@
 
 from __future__ import annotations
 
-import asyncio
-
 import pytest
 
 from app.core.errors import ConflictError, NotFoundError, ProviderError
 from app.domain.models.workflow import ExecutionStatus
 from app.domain.repositories.workflow_repository import (
     NodeExecutionCreate,
-    WorkflowExecutionCreate,
     node_execution_repo,
     workflow_execution_repo,
 )

@@ -4,18 +4,12 @@ from __future__ import annotations
 
 import asyncio
 
-import pytest
-
-from app.core.errors import ValidationError
 from app.domain.models.workflow import ExecutionStatus
 from app.services.workflow.control import control_registry
 from app.services.workflow.executors import BaseNodeExecutor
 from app.services.workflow.runtime import (
     FieldSpec,
-    NodeContext,
     NodeErrorCode,
-    NodeExecutionError,
-    NodeResult,
     NodeSchema,
     RuntimeNodeExecutor,
 )
@@ -157,7 +151,10 @@ class TestBasicExecution:
         assert row.started_at and row.finished_at
         assert row.attempt_metrics["attempts"][0]["ok"] is True
 
-    async def test_seeds_input_data_as_variables(self, engine, build_workflow):
+    async def test_seeds_input_data_as_variables(
+        self, engine, build_workflow, read_node_execution
+    ):
+        """input_data must be reachable from a node template as {{ vars.x }}."""
         execution_id, node_ids = build_workflow(
             [
                 {
@@ -168,13 +165,12 @@ class TestBasicExecution:
             ],
             input_data={"name": "Ada"},
         )
-        await engine.run_execution_v2(execution_id)
-
-        from app.services.workflow.engine import workflow_engine  # noqa: F401
-
-        # The rendered output is stored on the node execution.
         result = await engine.run_execution_v2(execution_id)
         assert result["status"] == ExecutionStatus.COMPLETED.value
+
+        # Assert the interpolation actually happened, not just the status.
+        row = read_node_execution(execution_id, node_ids[0])
+        assert "Ada" in str(row.output_data), row.output_data
 
 
 # --------------------------------------------------------------------------- #

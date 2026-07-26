@@ -47,6 +47,51 @@ class Settings(BaseSettings):
     RATE_LIMIT_WINDOW_SECONDS: float = 60.0
     RATE_LIMIT_ENABLED: bool = True
     ENABLE_DOCS: bool = True
+    #: Hostnames accepted in the Host header. ["*"] disables the check.
+    ALLOWED_HOSTS: List[str] = ["*"]
+    #: Enable HSTS. Only meaningful when the API is served over TLS.
+    SECURITY_HSTS_ENABLED: bool = False
+    SECURITY_HSTS_MAX_AGE: int = 31536000
+    #: Trust X-Forwarded-For for client identification (rate limiting, audit).
+    #: Only enable behind a proxy you control, or clients can spoof their IP.
+    TRUST_PROXY_HEADERS: bool = False
+    #: Stricter rate limit for credential endpoints (per client, per window).
+    AUTH_RATE_LIMIT_REQUESTS: int = 10
+    AUTH_RATE_LIMIT_WINDOW_SECONDS: float = 60.0
+
+    # --- M5: authentication and authorization -------------------------------
+    #: Master switch. False = single-user desktop mode: every caller is treated
+    #: as a local admin, preserving pre-M5 behaviour for existing clients.
+    #: Startup validation refuses to run production with this off.
+    AUTH_ENABLED: bool = False
+    #: HMAC signing secret for JWTs. Required whenever AUTH_ENABLED is true.
+    AUTH_SECRET_KEY: str = ""
+    AUTH_ACCESS_TOKEN_TTL_SECONDS: float = 900.0  # 15 minutes
+    AUTH_REFRESH_TOKEN_TTL_SECONDS: float = 1209600.0  # 14 days
+    AUTH_TOKEN_ISSUER: str = "creator-os"
+    AUTH_TOKEN_AUDIENCE: str = "creator-os-api"
+    AUTH_API_KEY_HEADER: str = "X-API-Key"
+    AUTH_MAX_FAILED_LOGINS: int = 5
+    AUTH_LOCKOUT_SECONDS: float = 900.0
+    #: Allow anonymous self-registration. Off by default: an internal
+    #: automation platform should not let strangers create accounts.
+    AUTH_ALLOW_SELF_REGISTRATION: bool = False
+    #: First-run admin, created only when the user table is empty.
+    AUTH_BOOTSTRAP_USERNAME: str = ""
+    AUTH_BOOTSTRAP_PASSWORD: str = ""
+    #: Require a CSRF token on cookie-authenticated unsafe requests.
+    CSRF_PROTECTION_ENABLED: bool = True
+    CSRF_HEADER_NAME: str = "X-CSRF-Token"
+    CSRF_COOKIE_NAME: str = "creator_os_csrf"
+
+    # --- M5: observability --------------------------------------------------
+    #: Expose Prometheus text-format metrics at /metrics.
+    METRICS_ENABLED: bool = True
+    #: Restrict /metrics to callers holding manage_settings. Off by default so
+    #: a scraper on a private network does not need a credential.
+    METRICS_REQUIRE_AUTH: bool = False
+    #: Ring-buffer size for the error aggregation endpoint.
+    ERROR_AGGREGATION_SIZE: int = 500
 
     # --- Workflow engine ----------------------------------------------------
     WORKFLOW_MAX_PARALLEL_NODES: int = 8
@@ -81,10 +126,35 @@ class Settings(BaseSettings):
     #: Truncate any single node output persisted to the DB beyond this size.
     EXECUTION_MAX_OUTPUT_BYTES: int = 256 * 1024
 
-    # --- M4: script node executors (NOT sandboxes - see EXECUTION_ENGINE.md) -
-    #: Python node uses a restricted-builtins interpreter. Disabled by default.
+    # --- M4/M5: script node executors (see docs/SECURITY.md for the honest
+    # statement of what the M5 sandbox does and does not guarantee) ----------
+    #: Python node. Disabled by default.
     ALLOW_PYTHON_EXECUTOR: bool = False
     PYTHON_EXECUTOR_TIMEOUT_SECONDS: float = 30.0
+    #: M5: run script nodes in a separate OS process with POSIX resource
+    #: limits (CPU, address space, file size, subprocess count) instead of an
+    #: in-process restricted exec. Strongly recommended; the in-process path
+    #: remains only as a fallback for platforms without fork+setrlimit.
+    SCRIPT_SANDBOX_ENABLED: bool = True
+    #: Hard CPU-seconds limit (RLIMIT_CPU). Kills busy loops that a wall-clock
+    #: timeout alone cannot stop.
+    SCRIPT_SANDBOX_CPU_SECONDS: int = 10
+    #: Address-space limit in MB (RLIMIT_AS). Bounds runaway allocation.
+    SCRIPT_SANDBOX_MEMORY_MB: int = 256
+    #: Max bytes a sandboxed script may write to any file (RLIMIT_FSIZE).
+    SCRIPT_SANDBOX_MAX_FILE_BYTES: int = 1024 * 1024
+    #: Max stdout bytes captured from a sandboxed script.
+    SCRIPT_SANDBOX_MAX_OUTPUT_BYTES: int = 256 * 1024
+    #: Modules a sandboxed Python script may import. Everything else is denied.
+    SCRIPT_SANDBOX_ALLOWED_MODULES: List[str] = [
+        "json", "math", "re", "datetime", "random", "statistics",
+        "itertools", "functools", "collections", "string", "base64",
+        "hashlib", "uuid", "decimal", "textwrap",
+    ]
+    #: Block outbound network access from sandboxed scripts.
+    SCRIPT_SANDBOX_BLOCK_NETWORK: bool = True
+    #: Maximum script-node invocations within a single workflow execution.
+    SCRIPT_EXECUTION_QUOTA_PER_RUN: int = 100
     #: JavaScript node requires a local Node.js binary. Disabled by default.
     ALLOW_JAVASCRIPT_EXECUTOR: bool = False
     JAVASCRIPT_BINARY: str = "node"

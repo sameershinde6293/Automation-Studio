@@ -127,6 +127,21 @@ def _request_id(request: Request) -> Optional[str]:
     return getattr(request.state, "request_id", None)
 
 
+def _aggregate(request: Request, exc: BaseException, request_id: Optional[str]) -> None:
+    """Feed an error into the aggregator, never failing the response if it errors."""
+    try:
+        from app.infrastructure.observability.errors import error_aggregator
+
+        error_aggregator.record(
+            exc,
+            request_id=request_id,
+            path=request.url.path,
+            method=request.method,
+        )
+    except Exception:  # pragma: no cover - observability must never break serving
+        logger.debug("Error aggregation failed", exc_info=True)
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     """Attach the standard error envelope handlers to a FastAPI app."""
 
@@ -142,6 +157,8 @@ def register_exception_handlers(app: FastAPI) -> None:
             exc.message,
             extra={"request_id": rid, "error_code": exc.code},
         )
+        if exc.status_code >= 500:
+            _aggregate(request, exc, rid)
         return JSONResponse(status_code=exc.status_code, content=exc.to_dict(rid))
 
     @app.exception_handler(StarletteHTTPException)
@@ -187,6 +204,7 @@ def register_exception_handlers(app: FastAPI) -> None:
             request.url.path,
             extra={"request_id": rid},
         )
+        _aggregate(request, exc, rid)
         body: Dict[str, Any] = {
             "code": "internal_error",
             # Never leak the raw exception text to the client.

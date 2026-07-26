@@ -12,6 +12,7 @@ from app.domain.models.ai.models import (  # noqa: F401
 )
 from app.domain.models.base import BaseModel  # noqa: F401
 from app.domain.models.enterprise import AuditEvent  # noqa: F401
+from app.domain.models.identity import ApiKey, RefreshSession, User  # noqa: F401
 from app.domain.models.media.models import MediaAsset, ProcessingJob  # noqa: F401
 from app.domain.models.plugin import Plugin  # noqa: F401
 from app.domain.models.project import Project  # noqa: F401
@@ -26,6 +27,7 @@ from app.domain.models.workflow import (  # noqa: F401
 
 __all__ = [
     "AIModelRegistry",
+    "ApiKey",
     "AuditEvent",
     "BaseModel",
     "Conversation",
@@ -38,7 +40,9 @@ __all__ = [
     "Plugin",
     "ProcessingJob",
     "Project",
+    "RefreshSession",
     "TokenUsage",
+    "User",
     "Workflow",
     "WorkflowExecution",
 ]

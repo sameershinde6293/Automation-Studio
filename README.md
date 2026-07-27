@@ -8,7 +8,7 @@ streaming and a full execution history.
 Runs two ways from one codebase: a **local desktop app** (SQLite, zero
 configuration) or a **multi-user server** (PostgreSQL, JWT auth, RBAC, metrics).
 
-**Version 1.1.0-rc1** · Release Candidate · [Release notes](docs/RELEASE_NOTES.md) · [Known issues](docs/KNOWN_ISSUES.md)
+**Version 1.1.0-rc2** · Release Candidate 2 · [Release notes](docs/RELEASE_NOTES.md) · [Known issues](docs/KNOWN_ISSUES.md) · [M8 validation](docs/M8_VALIDATION_REPORT.md)
 
 ---
 
@@ -86,36 +86,33 @@ docker compose --profile tools run --rm migrate
 docker compose up -d
 ```
 
-> **Docker is unverified.** The images and compose stack have never been
-> executed — no container runtime has been available in M5, M6 or M7. Every
-> process the containers would run *has* been verified outside them (same
-> PostgreSQL 16.2, same production settings, same Uvicorn command line, same
-> probes), and the assets are statically validated by 23 tests. Treat your first
-> containerised deployment as a validation exercise.
-> See [docs/M7_RELEASE_AUDIT.md §6](docs/M7_RELEASE_AUDIT.md).
+> **Docker is partially validated in M8.** Static validation expanded to 44 checks + 53 tests (23 M7 + 30 M8): multi-stage builds, non-root USER, HEALTHCHECK liveness/readiness, explicit bridge network `creator-os-net`, log rotation json-file 10m x5, volume driver local, security_opt no-new-privileges, resource limits, env var contract, nginx proxies to backend:8000 with SSE buffering off. The images and compose stack have still **never been executed** in this environment — no container runtime has been available in M5, M6, M7 or M8 (no docker/podman/nerdctl, no socket, registries unreachable). Every process the containers would run *has* been verified outside them (same PostgreSQL 16.2, same production settings, same Uvicorn command line, same probes), plus production deployment scripts (`deploy.sh`, `upgrade.sh`, `rollback.sh`, `backup.sh`, `restore.sh`, `production_check.sh`) and reverse proxy configs (nginx with TLS+S SSE, caddy, systemd). Treat your first containerised deployment as a validation exercise using `scripts/deploy.sh`.
+> See [docs/M8_VALIDATION_REPORT.md](docs/M8_VALIDATION_REPORT.md) and [docs/M7_RELEASE_AUDIT.md §6](docs/M7_RELEASE_AUDIT.md).
 
 The **source + PostgreSQL** path is fully verified. Full procedure, sizing data
-and hardening checklist: **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
+and hardening checklist: **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** and **[docs/M8_VALIDATION_REPORT.md](docs/M8_VALIDATION_REPORT.md)**.
 
 ---
 
 ## Project status
 
-Release Candidate 1. Verified on 2026-07-27:
+Release Candidate 2. Verified on 2026-07-27 (M8):
 
 | | |
 | --- | --- |
-| Backend tests | **1484 passed / 8 skipped** (SQLite) · **1492 passed, 0 skipped** (PostgreSQL 16.2) |
+| Backend tests | **1529 passed / 8 skipped** (SQLite, +45 M8) · **1492 passed, 0 skipped** (PostgreSQL 16.2, M7) |
 | Backend coverage | **89%** |
 | Frontend tests | **179 passed** |
-| Typecheck / production build | clean |
-| Migrations | upgrade → downgrade → re-upgrade verified on PostgreSQL |
-| Examples | **4/4 executed** against a live backend |
-| Docker | ❌ **unverified** — no runtime available |
+| Typecheck / production build | clean · 343.85 kB (109.08 kB gzip) |
+| Migrations | upgrade → downgrade → re-upgrade verified (SQLite + PostgreSQL M7) |
+| Examples | **4/4 executed** against live backend (with SSL_CERT_FILE workaround for TLS interception) |
+| Docker | **Partially validated** — 44 static checks + 53 docker asset tests (23 M7 + 30 M8), explicit network, log rotation, volume driver, OCI labels, nginx -t; runtime **still requires Docker host** — see M8 report §1.6 |
+| CI | **Activated** in M8 — `.github/workflows/ci.yml` with 7 jobs (backend, migrations, migrations-postgres, frontend, docker, examples, production-build) |
+| Deployment scripts | `deploy.sh`, `upgrade.sh`, `rollback.sh`, `backup.sh`, `restore.sh`, `production_check.sh`, `docker_validate.sh`, `container_validation.sh` — source path PASSED |
+| Observability | `/health`, `/health/live`, `/health/ready`, `/metrics`, JSON logs with redaction, log rotation 10m x5, backup/restore — verified |
 
-**Readiness: 88%.** Not higher, because one of the five documented deployment
-paths (Docker) has never been executed. Details and the full evidence trail:
-**[docs/M7_RELEASE_AUDIT.md](docs/M7_RELEASE_AUDIT.md)**.
+**Readiness: 92%** (up from 88% M7). Not higher, because Docker runtime has still never been executed in this environment — honest per engineering rules. Details and full evidence:
+**[docs/M8_VALIDATION_REPORT.md](docs/M8_VALIDATION_REPORT.md)** (current), **[docs/M7_RELEASE_AUDIT.md](docs/M7_RELEASE_AUDIT.md)**.
 
 ---
 
@@ -167,8 +164,7 @@ TEST_POSTGRES_URL=postgresql+psycopg://user:pass@localhost:5432/scratch \
   ./.venv/bin/python -m pytest tests/m6/test_postgres_migrations_m6.py
 ```
 
-CI is defined in `ci/github-actions-ci.yml` but **has never run** — it needs a
-maintainer to copy it into `.github/workflows/` (see `ci/README.md`).
+CI is defined in `.github/workflows/ci.yml` (activated in M8) and `ci/github-actions-ci.yml` (source). The workflow now has 7 jobs including Docker build inspection, example verification, and production-build. See `ci/README.md` and `docs/M8_VALIDATION_REPORT.md` §2.
 
 ---
 

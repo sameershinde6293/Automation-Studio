@@ -1,8 +1,17 @@
-# Creator OS backend image (M5).
+# Creator OS backend image (M5, hardened M8).
 #
 # Multi-stage so the runtime layer carries no build toolchain. The final image
 # runs as an unprivileged user, has a healthcheck, and treats the application
 # directory as read-only data (writable state lives in mounted volumes).
+#
+# M8 validation:
+# - Base image: python:3.11-slim (Debian, ~50 MB)
+# - Builder stage isolates pip/build tools (not shipped)
+# - Runtime stage: ~280-320 MB with ffmpeg, ~180 MB without (estimated)
+# - Final image runs as UID 10001 (creator), not root
+# - Healthcheck uses /health/live (no DB, cheap, never causes restart loop)
+# - Logs to stdout (12-factor), JSON format in production
+# - No secrets baked in, no .env copied from host (excluded by .dockerignore)
 
 # --------------------------------------------------------------------------- #
 # Builder: resolve dependencies into a self-contained virtualenv
@@ -27,11 +36,19 @@ RUN python -m venv /opt/venv \
 # --------------------------------------------------------------------------- #
 FROM python:3.11-slim AS runtime
 
+LABEL org.opencontainers.image.title="Creator OS Backend" \
+      org.opencontainers.image.description="Visual workflow automation with AI runtime" \
+      org.opencontainers.image.version="1.1.0" \
+      org.opencontainers.image.source="https://github.com/sameershinde6293/Automation-Studio" \
+      org.opencontainers.image.licenses="MIT"
+
 # ffmpeg/ffprobe are optional at runtime: the media pipeline degrades
 # gracefully without them, but transcoding and probing need them present.
+# curl is required for HEALTHCHECK.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ffmpeg curl \
- && rm -rf /var/lib/apt/lists/*
+ && rm -rf /var/lib/apt/lists/* \
+ && apt-get clean
 
 # Unprivileged runtime user. Running as root would mean a sandbox escape from
 # a script node lands with full container privileges.
@@ -57,11 +74,16 @@ COPY --chown=creator:creator . /app
 RUN mkdir -p /data/media /data/logs \
  && chown -R creator:creator /data
 
+# Ensure no .env was accidentally baked in (defence in depth, .dockerignore
+# already excludes it).
+RUN rm -f /app/.env /app/.env.production 2>/dev/null; echo "No env files in image"
+
 USER creator
 
 EXPOSE 8000
 
 # Uses the liveness probe: cheap, and it does not touch the database.
+# Critical: /health/live must not depend on DB, or a DB blip restarts the app.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD curl -fsS "http://127.0.0.1:${PORT}/health/live" || exit 1
 

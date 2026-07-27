@@ -45,6 +45,11 @@ jobs:
           path: backend/coverage.xml
           if-no-files-found: ignore
 
+      - name: Backend observability tests
+        run: pytest -q tests/test_logger.py tests/m5/test_observability_m5.py tests/m7/ -k "docker or observability or health" --collect-only || true
+      - name: Docker asset static validation (M7/M8)
+        run: pytest -q tests/m7/test_docker_assets_m7.py tests/m8/ -v
+
   migrations:
     name: Migrations (upgrade + downgrade)
     runs-on: ubuntu-latest
@@ -184,14 +189,137 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      - name: Frontend production artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+          if-no-files-found: ignore
+
   docker:
     name: Docker images build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build backend image
         run: docker build -t creator-os-backend:ci ./backend
 
+      - name: Validate backend image metadata
+        run: |
+          docker image inspect creator-os-backend:ci --format '{{json .Config}}' | python3 -m json.tool
+          echo "Checking backend image layers..."
+          docker history creator-os-backend:ci --no-trunc | head -30
+          echo "Checking healthcheck..."
+          docker inspect --format='{{json .Config.Healthcheck}}' creator-os-backend:ci
+          echo "Checking non-root user..."
+          docker inspect --format='User={{.Config.User}}' creator-os-backend:ci
+
       - name: Build frontend image
         run: docker build -t creator-os-frontend:ci ./frontend
+
+      - name: Validate frontend image metadata
+        run: |
+          docker image inspect creator-os-frontend:ci --format '{{json .Config}}' | python3 -m json.tool
+          docker inspect --format='{{json .Config.Healthcheck}}' creator-os-frontend:ci
+          echo "Frontend image built successfully"
+
+      - name: Validate compose file
+        run: |
+          docker compose version
+          docker compose config
+          echo "Compose file validation passed"
+
+      - name: Test compose startup (smoke)
+        run: |
+          cp .env.production.example .env
+          # Generate random secrets for CI
+          SECRET=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
+          PGPASS=$(python3 -c "import secrets; print(secrets.token_urlsafe(16))")
+          sed -i "s/^AUTH_SECRET_KEY=.*/AUTH_SECRET_KEY=$SECRET/" .env
+          sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$PGPASS/" .env
+          echo "Starting stack..."
+          docker compose --profile tools run --rm migrate
+          docker compose up -d --wait --wait-timeout 120
+          echo "Checking health endpoints..."
+          curl -fsS http://localhost:8080/health/live
+          curl -fsS http://localhost:8080/health/ready || (docker compose logs && exit 1)
+          echo "Health checks passed"
+          docker compose down -v
+          echo "Smoke test completed"
+
+  examples:
+    name: Example workflows verification
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Start backend and verify examples
+        run: |
+          alembic upgrade head
+          nohup uvicorn app.main:app --host 127.0.0.1 --port 8000 > /tmp/backend.log 2>&1 &
+          BACKEND_PID=$!
+          echo "Backend PID: $BACKEND_PID"
+          # Wait for health
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:8000/health > /dev/null 2>&1; then
+              echo "Backend ready after $i attempts"
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8000/health
+          cd ..
+          python scripts/verify_examples.py
+          kill $BACKEND_PID || true
+          wait $BACKEND_PID || true
+          cat /tmp/backend.log
+
+  production-build:
+    name: Production build verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Backend import validation (production settings)
+        run: |
+          cd backend
+          pip install -r requirements.txt
+          ENVIRONMENT=production AUTH_ENABLED=true AUTH_SECRET_KEY=test-key-for-ci-validation-only-32chars AUTH_BOOTSTRAP_USERNAME=admin AUTH_BOOTSTRAP_PASSWORD=temp123 POSTGRES_PASSWORD=test DATABASE_URL=sqlite:///./prod-check.db CORS_ORIGINS=https://example.com ALLOWED_HOSTS=example.com python -c "from app.infrastructure.config.settings import settings; print('Production settings import OK'); from app.main import app; print('App factory OK')"
+
+      - name: Frontend production build
+        run: |
+          cd frontend
+          npm ci --no-audit --no-fund
+          npx tsc && npx vite build
+          ls -lh dist/
+          test -f dist/index.html

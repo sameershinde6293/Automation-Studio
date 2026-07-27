@@ -1,0 +1,50 @@
+# Creator OS - Caddy reverse proxy with automatic HTTPS
+# Simplest TLS termination: Caddy obtains and renews Let's Encrypt certs automatically
+#
+# Usage:
+#   caddy run --config deploy/caddy/Caddyfile --adapter caddyfile
+# Or with docker-compose: add caddy service (see docker-compose.caddy.yml)
+
+studio.example.com {
+    # Automatic HTTPS, HSTS, redirect HTTP->HTTPS handled by Caddy
+
+    # Security headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        X-XSS-Protection "0"
+        Referrer-Policy "no-referrer"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+    }
+
+    # Reverse proxy to Creator OS stack
+    reverse_proxy localhost:8080 {
+        # For SSE (execution streaming)
+        header_up Host {host}
+        header_up X-Real-IP {remote}
+        header_up X-Forwarded-For {remote}
+        header_up X-Forwarded-Proto {scheme}
+
+        # Disable buffering for SSE
+        flush_interval -1
+    }
+
+    # Logging
+    log {
+        output file /var/log/caddy/creator-os-access.log {
+            roll_size 10MiB
+            roll_keep 5
+        }
+        format json
+    }
+
+    # Handle large uploads (must match backend MAX_REQUEST_BYTES)
+    # Caddy default is large enough, but explicitly note:
+    # 25 MiB max per backend config
+}
+
+# For local development without TLS
+:8080 {
+    reverse_proxy localhost:8080
+}

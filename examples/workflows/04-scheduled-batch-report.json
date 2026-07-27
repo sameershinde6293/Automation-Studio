@@ -1,0 +1,79 @@
+{
+  "name": "04 · Scheduled Batch Report",
+  "description": "Fan-out over a collection with a loop node, aggregate the results, and emit a report. Designed to be driven on a timetable by an external scheduler — see examples/README.md §Scheduling for the exact commands.",
+  "version": "1.0.0",
+  "creator_os": {
+    "min_version": "1.1.0",
+    "requires": [],
+    "runtime_seconds": 3,
+    "demonstrates": ["loop / iteration", "aggregation", "templated reporting", "scheduled triggering", "delay pacing"],
+    "notes": "Creator OS has no inbound trigger node (KNOWN_ISSUES #15). Scheduling is done by calling POST /api/workflows/{id}/executions from cron, systemd timers, or any external scheduler."
+  },
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Start",
+      "node_type": "start",
+      "position_x": 40,
+      "position_y": 180,
+      "config": {
+        "variables": {
+          "regions": ["eu-west", "us-east", "ap-south"],
+          "report_title": "Daily regional rollup"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "name": "PerRegion",
+      "node_type": "loop",
+      "position_x": 270,
+      "position_y": 180,
+      "config": {
+        "mode": "collect",
+        "items": "{{ Start.variables.regions }}",
+        "template": "region {{ item }} processed",
+        "max_iterations": 50
+      }
+    },
+    {
+      "id": 3,
+      "name": "Pace",
+      "node_type": "delay",
+      "position_x": 500,
+      "position_y": 180,
+      "config": {
+        "seconds": 0.5
+      }
+    },
+    {
+      "id": 4,
+      "name": "BuildReport",
+      "node_type": "set_variable",
+      "position_x": 720,
+      "position_y": 180,
+      "config": {
+        "name": "report",
+        "operation": "set",
+        "value": "{{ Start.variables.report_title }}: {{ PerRegion.results }}"
+      }
+    },
+    {
+      "id": 5,
+      "name": "End",
+      "node_type": "end",
+      "position_x": 940,
+      "position_y": 180,
+      "config": {
+        "output": "{{ BuildReport.value }}",
+        "status": "success"
+      }
+    }
+  ],
+  "edges": [
+    { "source_id": 1, "target_id": 2, "label": null },
+    { "source_id": 2, "target_id": 3, "label": null },
+    { "source_id": 3, "target_id": 4, "label": null },
+    { "source_id": 4, "target_id": 5, "label": null }
+  ]
+}

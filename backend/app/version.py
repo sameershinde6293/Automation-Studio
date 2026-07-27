@@ -5,6 +5,6 @@ Keeping the version in one module prevents the drift that caused the V1.0
 asserted ``0.1.0``).
 """
 
-__version__ = "1.1.0"
+__version__ = "1.1.0-rc1"
 
 VERSION = __version__

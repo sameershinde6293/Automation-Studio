@@ -1,0 +1,118 @@
+{
+  "name": "03 · Resilient HTTP Sync",
+  "description": "Production-shaped integration pattern: call an external API with a bounded timeout and automatic retries, branch on the outcome, and take an explicit failure path instead of crashing the run. This is the error-handling reference example.",
+  "version": "1.0.0",
+  "creator_os": {
+    "min_version": "1.1.0",
+    "requires": ["outbound network access to the configured URL"],
+    "runtime_seconds": 10,
+    "demonstrates": ["HTTP request", "retry with backoff", "timeouts", "success/failure branching", "explicit error path", "notification on failure"],
+    "notes": "The http_request node blocks private/loopback addresses unless HTTP_EXECUTOR_ALLOW_PRIVATE_NETWORKS=true — that SSRF guard is deliberate. Point the URL at a real external endpoint, or add the host to HTTP_EXECUTOR_ALLOWED_HOSTS.",
+    "tls_note": "Behind a TLS-inspecting proxy, httpx validates against the certifi bundle and fails with CERTIFICATE_VERIFY_FAILED even though curl succeeds. That is a trust-store mismatch, not a workflow error: start the backend with SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt. See docs/TROUBLESHOOTING.md."
+  },
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Start",
+      "node_type": "start",
+      "position_x": 40,
+      "position_y": 200,
+      "config": {
+        "variables": {
+          "endpoint": "https://api.github.com/repos/sameershinde6293/Automation-Studio"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "name": "FetchUpstream",
+      "node_type": "http_request",
+      "position_x": 260,
+      "position_y": 200,
+      "config": {
+        "url": "{{ Start.variables.endpoint }}",
+        "method": "GET",
+        "headers": {
+          "Accept": "application/vnd.github+json",
+          "User-Agent": "creator-os-example/1.1"
+        },
+        "timeout": 15
+      },
+      "retry_policy": {
+        "max_attempts": 3,
+        "backoff_seconds": 2
+      }
+    },
+    {
+      "id": 3,
+      "name": "CallSucceeded",
+      "node_type": "condition",
+      "position_x": 490,
+      "position_y": 200,
+      "config": {
+        "left": "{{ FetchUpstream.status_code }}",
+        "operator": "==",
+        "right": 200,
+        "true_label": "true",
+        "false_label": "false"
+      }
+    },
+    {
+      "id": 4,
+      "name": "RecordSuccess",
+      "node_type": "set_variable",
+      "position_x": 720,
+      "position_y": 100,
+      "config": {
+        "name": "sync_result",
+        "operation": "set",
+        "value": "sync ok: HTTP {{ FetchUpstream.status_code }}"
+      }
+    },
+    {
+      "id": 5,
+      "name": "RecordFailure",
+      "node_type": "set_variable",
+      "position_x": 720,
+      "position_y": 300,
+      "config": {
+        "name": "sync_result",
+        "operation": "set",
+        "value": "sync FAILED: HTTP {{ FetchUpstream.status_code }} from {{ Start.variables.endpoint }}"
+      }
+    },
+    {
+      "id": 6,
+      "name": "AlertOnFailure",
+      "node_type": "email",
+      "position_x": 930,
+      "position_y": 300,
+      "config": {
+        "to": "oncall@example.com",
+        "subject": "[Creator OS] Upstream sync failed",
+        "body": "{{ RecordFailure.value }}\n\nThe workflow retried 3 times before giving up.",
+        "html": false
+      }
+    },
+    {
+      "id": 7,
+      "name": "End",
+      "node_type": "end",
+      "position_x": 1140,
+      "position_y": 200,
+      "config": {
+        "output": "{{ RecordSuccess.value }}",
+        "status": "success"
+      }
+    }
+  ],
+  "edges": [
+    { "source_id": 1, "target_id": 2, "label": null },
+    { "source_id": 2, "target_id": 3, "label": null },
+    { "source_id": 3, "target_id": 4, "label": "true" },
+    { "source_id": 3, "target_id": 5, "label": "false" },
+    { "source_id": 4, "target_id": 7, "label": null },
+    { "source_id": 5, "target_id": 6, "label": null },
+    { "source_id": 6, "target_id": 7, "label": null }
+  ]
+}

@@ -1,5 +1,18 @@
 # Version 1.0 Release Candidate - Production Readiness Audit
 
+> **HISTORICAL — superseded and partly contradicted.** This V1.0 document
+> concluded "It is production-ready" on the strength of **17 passing tests**.
+> Subsequent milestones found that claim to be unsupportable: M5 discovered
+> that **20 of 22 node components were committed as zero-byte files** and that
+> no API endpoint had any authentication; M6 found that a documented production
+> `.env` could not boot the process at all; M7 found that a root `.env` was
+> silently ignored, leaving deployments unauthenticated.
+>
+> For current, evidence-backed status see **`M7_RELEASE_AUDIT.md`**
+> (1487 backend tests, 179 frontend, 89% coverage, 88% readiness).
+> Retained only as a record of what was believed at V1.0.
+
+
 ## Audit Overview
 A comprehensive audit of Creator OS V1.0 was performed to verify all critical subsystems are implemented, tested, and integrated without mock shortcuts where true production abstractions are expected. 
 

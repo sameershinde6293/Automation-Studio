@@ -1,6 +1,64 @@
 # Test Coverage
 
-## M4 totals (2026-07-26)
+## Current totals (2026-07-27, M7 — v1.1.0-rc1)
+
+| Suite | Tests | Status |
+| --- | --- | --- |
+| Backend — SQLite (default) | **1487 passed**, 8 skipped | ✅ |
+| Backend — PostgreSQL 16.2 | **1446 passed, 0 skipped** | ✅ |
+| Backend line coverage | **89%** (7734 statements, 875 uncovered) | ✅ measured, not estimated |
+| Frontend (Vitest, 13 files) | **179 passed** | ✅ |
+| Frontend typecheck (`tsc --noEmit`) | clean | ✅ |
+| Frontend production build | clean, 343.85 kB (109.08 kB gzip) | ✅ |
+| Example workflows executed end to end | **4/4** | ✅ |
+
+The 8 SQLite-run skips are the PostgreSQL migration tests, which gate on
+`TEST_POSTGRES_URL`. **M7 ran them against real PostgreSQL 16.2 and all 8
+pass** — closing M6-5, which had been open since the tests were written.
+
+### New in M7 (46 tests)
+
+| File | Focus |
+| --- | --- |
+| `tests/m7/test_env_discovery_m7.py` | `.env` search path, CWD independence, precedence order, `CREATOR_OS_ENV_FILE` override, and end-to-end loading against temporary trees (M7-F1) |
+| `tests/m7/test_settings_sources_m7.py` | Per-instance `_env_file` reaching the custom sources, M6 CSV/JSON list parsing preserved, `init > env > .env` precedence (M7-F2) |
+| `tests/m7/test_docker_assets_m7.py` | Compose topology, `${VAR}` contract vs `.env.production.example`, nginx upstream host/port vs real services, probe paths vs the live FastAPI route table, one-shot migration wiring, image hardening |
+
+**These are verified guards, not tautologies.** Run against the pre-fix code, 6
+of the configuration tests fail and the M7-F1 suite cannot even import. They
+were confirmed to detect the defects they describe.
+
+### How to run everything
+
+```bash
+./scripts/ci-local.sh                              # all of the below
+
+cd backend && ./.venv/bin/python -m pytest -q      # 1487
+cd frontend && npm test && npm run typecheck       # 179
+python scripts/verify_examples.py                  # 4/4 examples
+
+# include the PostgreSQL-gated tests
+TEST_POSTGRES_URL=postgresql+psycopg://user:pass@localhost:5432/scratch \
+  ./.venv/bin/python -m pytest -q
+```
+
+### Caveats
+
+- No end-to-end browser test drives the editor against a live backend; frontend
+  coverage is component and store level.
+- Tests requiring real external services (SMTP delivery, live FFmpeg transcode,
+  real AI providers) are exercised through their guarded paths — disabled flags,
+  dry-run behaviour, provider-missing errors — not by contacting anything.
+- **Docker is not covered by any executing test.** The 23 Docker tests are
+  static consistency checks over the asset files; no image is built and no
+  container is started. See `M7_RELEASE_AUDIT.md` §6.
+- Log rotation rollover is not exercised (needs 10 MB of output).
+
+---
+
+## Historical
+
+### M4 totals (2026-07-26)
 
 | Suite | Tests | Status |
 | --- | --- | --- |

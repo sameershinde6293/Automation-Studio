@@ -1,0 +1,93 @@
+{
+  "name": "01 · Hello Automation",
+  "description": "Smallest workflow that does real work. Sets a variable, branches on it, and returns a templated result. Runs with no credentials, no network and no optional binaries — use it to prove an install is healthy.",
+  "version": "1.0.0",
+  "creator_os": {
+    "min_version": "1.1.0",
+    "requires": [],
+    "runtime_seconds": 1,
+    "demonstrates": ["variables", "templating", "branching", "structured output"]
+  },
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Start",
+      "node_type": "start",
+      "position_x": 40,
+      "position_y": 160,
+      "config": {
+        "variables": {
+          "environment_name": "local"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "name": "BuildGreeting",
+      "node_type": "set_variable",
+      "position_x": 260,
+      "position_y": 160,
+      "config": {
+        "name": "greeting",
+        "operation": "set",
+        "value": "Creator OS is running in {{ Start.variables.environment_name }}"
+      }
+    },
+    {
+      "id": 3,
+      "name": "IsConfigured",
+      "node_type": "condition",
+      "position_x": 480,
+      "position_y": 160,
+      "config": {
+        "left": "{{ BuildGreeting.value }}",
+        "operator": "is_not_empty",
+        "true_label": "true",
+        "false_label": "false"
+      }
+    },
+    {
+      "id": 4,
+      "name": "Ready",
+      "node_type": "set_variable",
+      "position_x": 700,
+      "position_y": 80,
+      "config": {
+        "name": "status_line",
+        "operation": "set",
+        "value": "OK — {{ BuildGreeting.value }}"
+      }
+    },
+    {
+      "id": 5,
+      "name": "NotReady",
+      "node_type": "set_variable",
+      "position_x": 700,
+      "position_y": 250,
+      "config": {
+        "name": "status_line",
+        "operation": "set",
+        "value": "FAILED — greeting was empty"
+      }
+    },
+    {
+      "id": 6,
+      "name": "End",
+      "node_type": "end",
+      "position_x": 920,
+      "position_y": 160,
+      "config": {
+        "output": "{{ Ready.value }}",
+        "status": "success"
+      }
+    }
+  ],
+  "edges": [
+    { "source_id": 1, "target_id": 2, "label": null },
+    { "source_id": 2, "target_id": 3, "label": null },
+    { "source_id": 3, "target_id": 4, "label": "true" },
+    { "source_id": 3, "target_id": 5, "label": "false" },
+    { "source_id": 4, "target_id": 6, "label": null },
+    { "source_id": 5, "target_id": 6, "label": null }
+  ]
+}

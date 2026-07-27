@@ -436,10 +436,13 @@ readinessProbe: { path: /health/ready, port: 8000, initialDelaySeconds: 10, peri
 ## 7. Final Report Summary (per Milestone 8 requirements)
 
 ### PR URL
-- To be filled after push: `https://github.com/sameershinde6293/Automation-Studio/pull/<number>` (branch `arena/019fa3fd-automation-studio` → `main`)
+- PR: https://github.com/sameershinde6293/Automation-Studio/pull/10
 - Branch: `arena/019fa3fd-automation-studio`
-- Commit hash: `$(git rev-parse HEAD)` at push time (current local `c334d7b` plus M8 commits; after commit will be new SHA)
+- Commit hash (pushed, without .github/workflows due to permission limitation): `64b92fb0c58a7181a6a0a89bcaf5368e46622d92`
+- Local M8 commit (with workflow file, same tree except workflow): `b2b050d6ce69d6f081257bd22a7af8f10ff5678d` and `07d8a8aeaaf78849f7ca930bc63a1ca6650bc106` (re-add workflow, push rejected, documented)
 - Date: 2026-07-27
+- Base: `c334d7b` (main after PR #9 merge)
+- Note on CI workflow push: Attempt to push `.github/workflows/ci.yml` rejected with `refusing to allow a GitHub App to create or update workflow ... without workflows permission` (same as M5). Evidence: `git push` logs in this report. `ci/github-actions-ci.yml` IS pushed and contains same content; maintainer must `cp ci/github-actions-ci.yml .github/workflows/ci.yml` per `ci/README.md` if GitHub App permission not granted to Arena agent.
 
 ### Deployment evidence
 

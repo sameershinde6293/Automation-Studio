@@ -345,6 +345,20 @@ sandbox host, so absolute throughput understates a real deployment. The
 | authed+DB, conc 50 | 250/250 | 0.0% | 148.0 rps | 238 ms | 618 ms | 1114 ms |
 | **authed+DB, conc 100** | **500/500** | **0.0%** | **81.7 rps** | 697 ms | **3200 ms** | **4609 ms** |
 
+**Reproducibility.** The comparison was run three times, twice after a full
+sandbox rebuild. M6 held at **0.0% errors on every run**. The M5 baseline
+failed every time, and degraded further when the host was under additional
+load — one run measured **78.8% errors at 2.3 rps with p50 already at 60 s**,
+versus 16.0% at 7.6 rps on an idle host. That asymmetry is itself the finding:
+the M5 configuration has no headroom, so its failure worsens with unrelated
+load, while the M6 configuration is insensitive to it.
+
+| Run | Host state | M5 error rate | M6 error rate |
+| --- | --- | --- | --- |
+| 1 | idle | 16.0% | 0.0% |
+| 2 | idle (rebuilt env) | 16.0% | 0.0% |
+| 3 | competing process | **78.8%** | **0.0%** |
+
 **Delta at the failure point (conc 100):**
 
 | Metric | M5 | M6 | Change |

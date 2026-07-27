@@ -2,7 +2,7 @@
 
 **Current phase:** Version 1.1 development
 **Version:** 1.1.0 (in progress)
-**Last updated:** 2026-07-26 (M5)
+**Last updated:** 2026-07-26 (M6)
 
 ## Milestone progress
 
@@ -13,8 +13,9 @@
 | M2 | API expansion & service completion | ✅ Complete (merged, PR #3) |
 | M3 | Drag-and-drop Workflow Editor | ✅ Complete (merged, PR #4) |
 | M4 | Execution engine & AI orchestration | ✅ Complete (merged, PR #5) |
-| M5 | Production readiness & platform hardening | ✅ Complete (this branch) |
-| M6 | Durable queue & horizontal scaling | ⬜ Planned |
+| M5 | Production readiness & platform hardening | ✅ Complete (merged, PR #7) |
+| M6 | Production validation, scalability & operational readiness | ✅ Complete (this branch) — 85%, see `M6_VALIDATION_REPORT.md` |
+| M7 | Durable queue & horizontal scaling (Redis) | ⬜ Planned |
 | M7 | Media pipeline UX & first-party providers | ⬜ Planned |
 
 ## Health — all figures measured, not estimated

@@ -35,10 +35,16 @@ def _engine_kwargs() -> Dict[str, Any]:
         if ":memory:" in settings.DATABASE_URL:
             kwargs["poolclass"] = StaticPool
     else:
+        # M6-F6: the pool must be able to serve the number of requests the
+        # ASGI threadpool will admit concurrently. When it cannot, every
+        # excess request blocks on checkout for pool_timeout seconds and the
+        # server appears hung rather than busy. pool_timeout is set explicitly
+        # (SQLAlchemy defaults to 30s) so overload sheds fast instead.
         kwargs.update(
             pool_size=settings.DB_POOL_SIZE,
             max_overflow=settings.DB_MAX_OVERFLOW,
             pool_recycle=settings.DB_POOL_RECYCLE_SECONDS,
+            pool_timeout=settings.DB_POOL_TIMEOUT_SECONDS,
             pool_pre_ping=True,
         )
     return kwargs

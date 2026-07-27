@@ -161,6 +161,13 @@ def downgrade() -> None:
         op.drop_index(index, table_name="workflow_execution_logs")
     op.drop_table("workflow_execution_logs")
 
+    # M6-F3: DROP TABLE does not remove the native PostgreSQL enum type this
+    # table's `level` column used, which made downgrade -> upgrade fail with
+    # DuplicateObject. No-op on SQLite, which has no native enum type.
+    bind = op.get_bind()
+    if bind.dialect.name == "postgresql":
+        sa.Enum(name="loglevel").drop(bind, checkfirst=True)
+
     op.drop_index("ix_node_executions_execution_status", table_name="node_executions")
     with op.batch_alter_table("node_executions") as batch:
         batch.drop_column("error_code")

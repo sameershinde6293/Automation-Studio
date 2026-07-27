@@ -3,17 +3,84 @@
 All values are overridable via environment variables or a local ``.env`` file.
 Backwards compatible with V1.0: ``APP_NAME``, ``VERSION``, ``ENVIRONMENT`` and
 ``DATABASE_URL`` keep their original names and defaults.
+
+List-valued settings (M6)
+-------------------------
+``CORS_ORIGINS``, ``ALLOWED_HOSTS`` and friends accept **either** a JSON array
+or a plain comma-separated string. Getting that to work from the environment
+needs more than a ``field_validator``, and the M6 audit found that the M5 code
+did not: see :class:`_ListFriendlyEnvSource` below.
 """
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings.sources import DotEnvSettingsSource, EnvSettingsSource
 
 from app.version import __version__
+
+
+def _decode_list_friendly(value: Any, original) -> Any:
+    """JSON-decode ``value``, falling back to comma-separated parsing.
+
+    ``pydantic-settings`` decodes complex (list/dict) fields *inside the
+    settings source*, before any field validator runs, and raises
+    ``SettingsError`` when the value is not valid JSON. Because ``Settings()``
+    is constructed at module import, that error kills the process before
+    logging or startup validation exist to report it.
+
+    M6 found this the hard way: every documented production ``.env`` uses
+    ``CORS_ORIGINS=https://a,https://b``, so a deployment that followed the
+    documentation could not boot at all, and the M5 startup-validation gate —
+    whose entire job is to refuse an unsafe production config — was
+    unreachable. See docs/M6_VALIDATION_REPORT.md finding M6-F1.
+
+    The fix is to widen the decoder rather than to narrow the documentation:
+    JSON is still accepted (so nothing that worked before changes), and a bare
+    comma-separated string now decodes to a list instead of raising.
+    """
+    if not isinstance(value, str):
+        return original(value)
+    stripped = value.strip()
+    if not stripped:
+        return []
+    # Anything that looks like JSON is decoded as JSON, so a genuinely
+    # malformed JSON array still reports a JSON error rather than being
+    # silently mangled into a one-element list.
+    if stripped[0] in "[{":
+        return original(value)
+    try:
+        return json.loads(stripped)
+    except (json.JSONDecodeError, ValueError):
+        return [item.strip() for item in stripped.split(",") if item.strip()]
+
+
+class _ListFriendlyEnvSource(EnvSettingsSource):
+    """``EnvSettingsSource`` that accepts comma-separated lists."""
+
+    def decode_complex_value(self, field_name, field, value):  # type: ignore[override]
+        return _decode_list_friendly(
+            value, lambda v: super(_ListFriendlyEnvSource, self).decode_complex_value(
+                field_name, field, v
+            )
+        )
+
+
+class _ListFriendlyDotEnvSource(DotEnvSettingsSource):
+    """``DotEnvSettingsSource`` that accepts comma-separated lists."""
+
+    def decode_complex_value(self, field_name, field, value):  # type: ignore[override]
+        return _decode_list_friendly(
+            value,
+            lambda v: super(
+                _ListFriendlyDotEnvSource, self
+            ).decode_complex_value(field_name, field, v),
+        )
 
 
 class Settings(BaseSettings):
@@ -25,9 +92,28 @@ class Settings(BaseSettings):
     # --- Persistence --------------------------------------------------------
     DATABASE_URL: str = "sqlite:///./creator_os.db"
     DB_ECHO: bool = False
-    DB_POOL_SIZE: int = 5
-    DB_MAX_OVERFLOW: int = 10
+    #: Pooled connections. Every in-flight request holds one connection for
+    #: its whole lifetime (``get_db`` yields the session for the duration of
+    #: the handler), so pool capacity — not CPU — is what caps concurrency.
+    #:
+    #: M6 load testing measured this directly at 100 concurrent clients:
+    #:   capacity  40 -> 460/500 ok, 40x 503, 31 rps
+    #:   capacity  60 -> 460/500 ok, 40x 503, 31 rps
+    #:   capacity  80 -> 500/500 ok,  0 errors, 79 rps
+    #:   capacity 120 -> 500/500 ok,  0 errors, 80 rps  (no further gain)
+    #: 80 is the knee of the curve. See docs/M6_VALIDATION_REPORT.md (M6-F6).
+    #:
+    #: Sizing rule: capacity x replicas must stay below the PostgreSQL
+    #: ``max_connections`` (default 100 — raise it, or use PgBouncer, before
+    #: scaling out).
+    DB_POOL_SIZE: int = 20
+    DB_MAX_OVERFLOW: int = 60
     DB_POOL_RECYCLE_SECONDS: int = 1800
+    #: Seconds a request waits for a pooled connection before failing.
+    #: SQLAlchemy's 30s default turns overload into a 30s hang per request and
+    #: a stampede of timeouts; failing fast sheds load and keeps the process
+    #: responsive so /health/live still answers.
+    DB_POOL_TIMEOUT_SECONDS: float = 10.0
     SQLITE_BUSY_TIMEOUT_MS: int = 5000
 
     # --- Logging ------------------------------------------------------------
@@ -217,6 +303,27 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls,
+        init_settings,
+        env_settings,
+        dotenv_settings,
+        file_secret_settings,
+    ):
+        """Swap in the list-friendly env sources (M6-F1).
+
+        Order is unchanged from the pydantic-settings default, so precedence
+        (init > env > .env > secrets) behaves exactly as before.
+        """
+        return (
+            init_settings,
+            _ListFriendlyEnvSource(settings_cls),
+            _ListFriendlyDotEnvSource(settings_cls),
+            file_secret_settings,
+        )
 
     @field_validator(
         "CORS_ORIGINS",

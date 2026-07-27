@@ -1,11 +1,28 @@
 # Security
 
-Creator OS v1.1 · last updated 2026-07-26 (M5)
+Creator OS v1.1 · last updated 2026-07-26 (M6)
 
 This document describes what the platform's security controls **do** and, just
 as importantly, what they **do not** do. Claims here are backed by tests in
-`backend/tests/m5/`; where a control is incomplete it is stated plainly rather
-than softened.
+`backend/tests/m5/` and `backend/tests/m6/`; where a control is incomplete it
+is stated plainly rather than softened.
+
+> **M6 second security review.** M6 re-tested every M5 control against a live
+> production-configured server and found **one real bypass**: the `/api/v1`
+> router alias did not inherit four path-prefix controls, so the stricter
+> credential-endpoint rate limit could be evaded by inserting `/v1` into the
+> URL (measured: 14 consecutive login attempts, never throttled). Fixed, and
+> both mounts now share a single rate-limit bucket — asserted by test.
+>
+> RBAC was re-verified as **not** affected: authorization is enforced by
+> router-level dependencies that apply to both mounts. Anonymous access and
+> `viewer`-role writes are rejected identically on `/api` and `/api/v1`.
+>
+> Bypasses attempted and confirmed still impossible: `alg:none` and
+> RS256→HS256 JWT confusion, replaying an access token as a refresh token,
+> rate-limit evasion by alternating mounts, credential caching by an
+> intermediary, and internal detail leaking through error responses. Full
+> matrix in `M6_VALIDATION_REPORT.md` §8.
 
 ---
 

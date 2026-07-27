@@ -38,7 +38,13 @@ logs/
 # Environment / secrets
 .env
 .env.*
+# Templates carry no secrets and must be committed — docker-compose.yml and
+# docs/DEPLOYMENT.md both instruct operators to copy them. The blanket
+# `.env.*` rule above is why .env.production.example was silently never
+# committed in M5 (finding M6-F4).
 !.env.example
+!.env.production.example
+!*.env.example
 
 # OS / editor
 .DS_Store

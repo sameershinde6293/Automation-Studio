@@ -4,10 +4,26 @@
 
 | Job | What it runs |
 | --- | --- |
-| `backend` | `pytest` with coverage (1342 tests) |
-| `migrations` | Alembic upgrade → downgrade → re-upgrade round trip, and a single-head check |
+| `backend` | `pytest` with coverage (1446 tests) |
+| `migrations` | Alembic upgrade → downgrade → re-upgrade round trip on SQLite, and a single-head check |
+| `migrations-postgres` | **Added in M6.** The same round trip against a real PostgreSQL 16 service container, plus the M6 pool/regression suite |
 | `frontend` | `tsc --noEmit`, `vite build`, `vitest` (179 tests) |
 | `docker` | Builds both production images |
+
+## Why `migrations-postgres` exists
+
+PostgreSQL is the only supported production database, but every migration test
+before M6 ran on SQLite. SQLite has no native `ENUM` type, so it could not
+reveal M6-F3: `downgrade` left PostgreSQL enum types behind, which wedged the
+rollback procedure documented in `DEPLOYMENT.md`.
+
+The M6 PostgreSQL tests **skip themselves** when `TEST_POSTGRES_URL` is unset
+or unreachable, so that the suite stays runnable on a laptop. Without a
+dedicated job they would silently never run in CI and the regression would be
+unguarded — so the job ends with an assertion that parses the JUnit report and
+**fails the build if every test skipped**. (That assertion is deliberately not
+a `grep` over console output: `-q` suppresses the summary line, so a naive
+`grep skipped` passes a fully-skipped run. This was observed while writing it.)
 
 ## Activating it — REQUIRES A MAINTAINER
 

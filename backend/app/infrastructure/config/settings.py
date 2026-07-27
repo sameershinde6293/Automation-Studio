@@ -10,11 +10,36 @@ List-valued settings (M6)
 or a plain comma-separated string. Getting that to work from the environment
 needs more than a ``field_validator``, and the M6 audit found that the M5 code
 did not: see :class:`_ListFriendlyEnvSource` below.
+
+``.env`` discovery (M7)
+-----------------------
+``env_file=".env"`` is resolved by pydantic-settings **relative to the current
+working directory**. Every document in the repository tells an operator to
+write ``.env`` at the repository root and then to start the server from
+``backend/`` (``cd backend && uvicorn app.main:app``) — two directories that
+are never the same one. The file was therefore silently ignored.
+
+M7 reproduced the consequence end to end (finding M7-F1): a fully populated
+production ``.env`` was skipped, the process fell back to **every default**,
+and it came up in ``development`` mode on SQLite with authentication off,
+Swagger served and startup validation never triggered — because
+``ENVIRONMENT`` had defaulted back to ``development``, so the production gate
+that exists precisely to refuse this configuration did not consider itself to
+be in production. A silent fallback to unauthenticated defaults is the worst
+possible failure mode for the one file that carries the security posture.
+
+The fix is deterministic discovery instead of a CWD guess: the repository root
+and ``backend/`` are located from this module's own path, so the same ``.env``
+is found no matter where the process is started. The CWD file is still read
+and still wins, so existing setups are unaffected — this only adds locations
+that previously resolved to nothing. ``CREATOR_OS_ENV_FILE`` overrides the lot
+for deployments that keep secrets outside the tree.
 """
 
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any, List, Optional
 
@@ -23,6 +48,40 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic_settings.sources import DotEnvSettingsSource, EnvSettingsSource
 
 from app.version import __version__
+
+
+def _candidate_env_files() -> List[str]:
+    """Return the ``.env`` files to load, lowest precedence first.
+
+    pydantic-settings gives **later** entries precedence, so the current
+    working directory is placed last: it is what the pre-M7 code used, and
+    keeping it authoritative means no existing deployment changes behaviour.
+
+    Only the search path is widened. A file that does not exist is ignored by
+    pydantic-settings, so listing extra candidates is free.
+    """
+    override = os.getenv("CREATOR_OS_ENV_FILE", "").strip()
+    if override:
+        # An explicit path is a deliberate operator decision: honour it alone,
+        # so a stray .env in the working directory cannot shadow it.
+        return [override]
+
+    # settings.py -> config -> infrastructure -> app -> backend -> <repo root>
+    backend_dir = Path(__file__).resolve().parents[3]
+    repo_root = backend_dir.parent
+
+    candidates = [repo_root / ".env", backend_dir / ".env", Path.cwd() / ".env"]
+
+    # Preserve order while removing duplicates (running from backend/ or the
+    # repo root makes two of these the same file).
+    seen: set[str] = set()
+    ordered: List[str] = []
+    for path in candidates:
+        key = str(path)
+        if key not in seen:
+            seen.add(key)
+            ordered.append(key)
+    return ordered
 
 
 def _decode_list_friendly(value: Any, original) -> Any:
@@ -299,7 +358,11 @@ class Settings(BaseSettings):
     FFMPEG_TIMEOUT_SECONDS: float = 900.0
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        # Repository root, then backend/, then the working directory (last
+        # wins). Resolved from this file's location so that starting the
+        # server from backend/ — exactly as every guide instructs — still
+        # finds the .env written at the repository root. See M7-F1.
+        env_file=_candidate_env_files(),
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -317,11 +380,65 @@ class Settings(BaseSettings):
 
         Order is unchanged from the pydantic-settings default, so precedence
         (init > env > .env > secrets) behaves exactly as before.
+
+        **M7-F2.** The M6 implementation constructed both replacements as
+        ``_ListFriendly*Source(settings_cls)`` — with no other arguments. Each
+        source therefore fell back to its own constructor defaults and
+        **discarded the configuration pydantic-settings had already resolved**
+        for the sources being replaced, including the per-instance
+        ``_env_file`` / ``_env_prefix`` / ``_case_sensitive`` overrides passed
+        to ``Settings(...)``.
+
+        The practical effect was that ``Settings(_env_file=...)`` silently
+        ignored the file and returned defaults. That is invisible in normal
+        operation — the module-level singleton passes no overrides — which is
+        why it survived M6, but it makes the class untestable against a
+        temporary ``.env`` and breaks any caller that loads an alternate
+        configuration. It was found in M7 while writing the M7-F1 regression
+        tests: the tests failed against the *fix* because the constructor
+        argument never reached the source.
+
+        Copying the resolved attributes off the originals keeps the M6-F1
+        behaviour and restores the standard contract, rather than
+        re-specifying the defaults here where they would drift.
+
+        The candidate list is also **re-evaluated here** rather than reused
+        from ``model_config``. ``model_config`` is built once at class
+        creation, which would freeze the working directory as it was at
+        *import* time; the pre-M7 relative ``".env"`` was resolved at
+        *construction* time. Recomputing keeps that timing identical, so a
+        process that changes directory before constructing ``Settings`` — and
+        every test that does so via ``monkeypatch.chdir`` — behaves exactly as
+        it did before M7.
         """
+        env_file = dotenv_settings.env_file
+        # Only substitute when the caller did not ask for a specific file:
+        # an explicit ``Settings(_env_file=...)`` must always be honoured.
+        if env_file == settings_cls.model_config.get("env_file"):
+            env_file = _candidate_env_files()
+
         return (
             init_settings,
-            _ListFriendlyEnvSource(settings_cls),
-            _ListFriendlyDotEnvSource(settings_cls),
+            _ListFriendlyEnvSource(
+                settings_cls,
+                case_sensitive=env_settings.case_sensitive,
+                env_prefix=env_settings.env_prefix,
+                env_nested_delimiter=env_settings.env_nested_delimiter,
+                env_ignore_empty=env_settings.env_ignore_empty,
+                env_parse_none_str=env_settings.env_parse_none_str,
+                env_parse_enums=env_settings.env_parse_enums,
+            ),
+            _ListFriendlyDotEnvSource(
+                settings_cls,
+                env_file=env_file,
+                env_file_encoding=dotenv_settings.env_file_encoding,
+                case_sensitive=dotenv_settings.case_sensitive,
+                env_prefix=dotenv_settings.env_prefix,
+                env_nested_delimiter=dotenv_settings.env_nested_delimiter,
+                env_ignore_empty=dotenv_settings.env_ignore_empty,
+                env_parse_none_str=dotenv_settings.env_parse_none_str,
+                env_parse_enums=dotenv_settings.env_parse_enums,
+            ),
             file_secret_settings,
         )
 

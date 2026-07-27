@@ -1,14 +1,11 @@
-# Creator OS Version 1.0.0
+Creator OS v1.1.0-rc1 — Release Candidate 1
+===========================================
 
-Creator OS is now complete and ready for production! 
+This file is a stub kept for backwards compatibility.
+The authoritative release notes are:
 
-## Release Highlights
-- **Workflow Engine**: Fully functional DAG evaluation, task checkpointing, parallel execution, and automated retries.
-- **AI Runtime**: Connect seamlessly to local (Ollama) or cloud (OpenAI) environments via resilient abstraction APIs.
-- **Media Processing**: Asynchronous background pipeline with thumbnail extraction and modular hooks.
-- **Plugin Architecture**: First-class plugin SDK and system extension capabilities.
-- **Enterprise Ready**: Fast API, SQLite, JWT capabilities, and localized Audit Logging out of the box.
-- **Desktop UI**: React + Electron desktop portal connecting all of these subsystems cleanly.
+    docs/RELEASE_NOTES.md
 
-## Build Information
-Source code is certified clean with zero `asyncio.sleep()` placeholders across the active execution stack. All 17 backend subsystem tests pass dynamically.
+Previous contents of this file described version 1.0.0 and claimed
+"17 backend subsystem tests pass". Both figures were stale by several
+milestones: the suite is now 1487 backend tests and 179 frontend tests.

@@ -1,27 +1,56 @@
 # Deployment
 
-Creator OS v1.1 · last updated 2026-07-26 (M6)
+Creator OS v1.1.0-rc1 · last updated 2026-07-27 (M7)
 
 How to run Creator OS as a server. For the local desktop application see
 `INSTALLATION_GUIDE.md`.
 
-> **Status — updated in M6.** M6 executed this procedure against a real
-> PostgreSQL 16.2 server and a real production-configured backend. That found
-> and fixed four defects that made these instructions impossible to follow,
-> including a settings bug that prevented the process from starting at all
-> with the `.env` format documented below.
+> **Status — updated in M7.** M7 re-executed this procedure from a **clean
+> clone** against real PostgreSQL 16.2, and found a critical defect M6 had
+> missed: a `.env` written at the repository root — as §2 below instructs — was
+> **silently ignored** when the server was started from `backend/`. The process
+> did not fail. It fell back to every default, booting in `development` with
+> **authentication off** and **Swagger exposed**, while the migrated PostgreSQL
+> database sat unused. Fixed (M7-F1); see `M7_RELEASE_AUDIT.md`.
 >
-> **Verified end to end:** PostgreSQL migrations (upgrade, downgrade,
-> round-trip), production startup, `/health/live`, `/health/ready`, `/metrics`,
-> graceful shutdown, restart, SIGKILL recovery, database-outage recovery, and
-> `pg_dump`/`pg_restore` disaster recovery.
+> **Verified end to end in M7:** fresh-clone install, PostgreSQL migrations
+> (upgrade, downgrade, full round trip to base with zero orphaned enum types),
+> production startup with the complete security posture (`/docs` 404,
+> unauthenticated API 401, host-header injection 400), bootstrap admin creation,
+> JWT login, RBAC enforcement, `/health/live`, `/health/ready`, `/metrics`,
+> configuration validation, JSON logging with **verified secret redaction**,
+> graceful shutdown, restart with data intact, and `pg_dump` → destructive
+> delete → restore recovering every row. The full backend suite passes against
+> PostgreSQL with **zero skips** (1492 tests).
 >
 > **Still unverified:** the **Docker layer itself** — image build and
-> `docker compose up`. No container runtime was available in M5 or M6. Every
-> process the container would run has been validated outside it, but treat the
-> first containerised deployment as a validation exercise.
+> `docker compose up`. No container runtime has been available in M5, M6 *or*
+> M7. Every process the container would run has been validated outside it, and
+> 23 static tests now check the asset definitions for internal consistency, but
+> that is not the same as running the stack. **Treat the first containerised
+> deployment as a validation exercise.**
 >
-> Full evidence: `M6_VALIDATION_REPORT.md`.
+> Full evidence: `M7_RELEASE_AUDIT.md` (current), `M6_VALIDATION_REPORT.md`.
+
+---
+
+## 0. Where `.env` goes
+
+The file is discovered at the **repository root**, in `backend/`, or in the
+process working directory — in that order, with later entries taking
+precedence, and real environment variables outranking all of them. Set
+`CREATOR_OS_ENV_FILE=/absolute/path` to override the search entirely.
+
+Confirm what a deployment will actually load before starting it:
+
+```bash
+cd backend && ./.venv/bin/python -c \
+  "from app.infrastructure.config.settings import settings; \
+   print(settings.ENVIRONMENT, settings.AUTH_ENABLED, settings.DATABASE_URL)"
+```
+
+If that prints `development False sqlite://…` when you expected production,
+stop: the configuration is not reaching the process.
 
 ---
 

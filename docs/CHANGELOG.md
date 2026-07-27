@@ -1,6 +1,107 @@
 # Changelog
 
-## [1.1.0] - 2026-07-26 (in progress)
+## [1.1.0-rc1] - 2026-07-27 — Release Candidate 1
+
+### Milestone 7 — Production deployment and release candidate
+
+No new features. M7 attempted, from a clean clone, to do exactly what the
+documentation said, and fixed what did not work. Two release-blocking
+configuration defects were found that way — neither visible from reading the
+code. Full evidence in `M7_RELEASE_AUDIT.md`.
+
+#### Fixed — release blockers
+
+- **`.env` at the repository root was silently ignored (M7-F1, CRITICAL).**
+  `Settings.model_config` used `env_file=".env"`, which pydantic-settings
+  resolves relative to the **current working directory**. Every guide instructs
+  the operator to write `.env` at the repository root and start the server from
+  `backend/` — different directories, so the file was never read. The process
+  did not fail; it fell back to every default. Reproduced against a real server
+  with a fully populated production `.env`: `ENVIRONMENT` became `development`,
+  `AUTH_ENABLED` became **false** (every caller treated as a local admin),
+  `ENABLE_DOCS` became **true** (Swagger served publicly), and `DATABASE_URL`
+  fell back to SQLite while PostgreSQL sat migrated and unused — `/docs`
+  returned `200` and `/api/workflows/` returned `500` with
+  `no such table: workflows`. The M5 startup gate could not catch it: it only
+  refuses to boot when it believes it is in production, and `ENVIRONMENT` had
+  itself defaulted back. Fixed with deterministic discovery — the repository
+  root and `backend/` are resolved from the module's own path, so the same
+  `.env` is found regardless of the working directory. The CWD file is still
+  read and still takes precedence, so no existing deployment changes behaviour;
+  `CREATOR_OS_ENV_FILE` overrides the search entirely.
+- **Custom settings sources discarded their resolved configuration (M7-F2,
+  HIGH — present since M6).** The M6 list-friendly sources were constructed as
+  `_ListFriendly*Source(settings_cls)` with no further arguments, so every other
+  argument fell back to a constructor default and the configuration
+  pydantic-settings had already resolved — including the per-instance
+  `_env_file` override — was thrown away. `Settings(_env_file=...)` therefore
+  ignored the file and returned defaults. Invisible in normal operation (the
+  module-level singleton passes no overrides), which is why it shipped in M6;
+  found in M7 when the M7-F1 regression tests failed against a *correct* fix.
+  The replacements now inherit the resolved attributes from the sources they
+  replace, and the `.env` candidate list is re-evaluated at construction time
+  rather than frozen at class creation — preserving the pre-M7 timing so
+  directory-changing callers and tests behave exactly as before.
+
+#### Added
+
+- **`examples/`** — four production-shaped workflows: a dependency-free smoke
+  test, a chained AI content pipeline using the provider fallback chain, a
+  resilient HTTP sync demonstrating retries and explicit failure branching, and
+  a scheduled batch report using loop fan-out.
+- **`scripts/verify_examples.py`** — imports, validates, executes, reads back
+  and exports every example against a live backend, asserting the round trip.
+  It paid for itself on first run by catching two examples whose
+  `{{ Start.topic }}` templates rendered **empty** (the correct reference for a
+  seeded variable is `{{ Start.variables.topic }}`).
+- **46 tests.** `tests/m7/test_env_discovery_m7.py` and
+  `test_settings_sources_m7.py` (23) pin configuration resolution and
+  precedence; 6 of them fail against the pre-fix code, confirming they are real
+  guards. `tests/m7/test_docker_assets_m7.py` (23) statically validates the
+  Docker assets — compose topology, the `${VAR}` contract against
+  `.env.production.example`, nginx upstream host and port against real compose
+  services, container probe paths against the live FastAPI route table,
+  one-shot migration wiring, unprivileged user, `.dockerignore` coverage.
+- **`docs/TROUBLESHOOTING.md`, `docs/FAQ.md`, `docs/UPGRADE_GUIDE.md`,
+  `docs/M7_RELEASE_AUDIT.md`** — all new.
+
+#### Changed
+
+- `README.md` rewritten (it was a single line).
+- `docs/INSTALLATION_GUIDE.md` rewritten — it was 19 lines that named no
+  prerequisites and pointed at a build script.
+- `docs/RELEASE_NOTES.md` rewritten — it still described 0.3.0-alpha.
+- Version set to `1.1.0-rc1` across `app/version.py`, `frontend/package.json`
+  (was a stale `1.0.1-alpha`) and the docs.
+- `docs/PROJECT_STATUS.md`, `docs/KNOWN_ISSUES.md`, `docs/TEST_COVERAGE.md`,
+  `docs/TODO.md`, `docs/ROADMAP_PROGRESS.md` and `release_notes.txt` brought in
+  line with measured reality.
+
+#### Verified
+
+Fresh clone → venv → dependencies → migrations → boot → execute a workflow →
+graceful shutdown. Production boot on **PostgreSQL 16.2** with the full security
+posture asserted (`/docs` 404, unauthenticated API 401, host-header injection
+400, bootstrap admin created, JWT login, RBAC, zero config errors, secrets
+absent from logs). Migrations upgrade/downgrade/round-trip and a full
+downgrade-to-base cycle leaving **zero orphaned enum types**. Backup →
+destructive delete → restore recovering every row. Restart persistence.
+**1484 passed / 8 skipped** on SQLite (1492 collected); **1492 with zero skips** on PostgreSQL;
+**179 frontend**; 89% coverage; clean typecheck and production build; **4/4
+examples executed**.
+
+**Closed M6-5:** the 8 PostgreSQL migration regression tests, which had never
+run in M5 or M6 for want of a PostgreSQL server, now execute and pass.
+
+#### Still unverified
+
+**Docker.** `docker build` and `docker compose up` have never been executed —
+no container runtime in M5, M6 or M7 (no `docker`/`podman`/`nerdctl` binary, no
+socket, every registry unreachable, `podman` absent from package sources). Every
+process the containers would run has been verified outside them, and the assets
+are statically validated, but that is not the same as running the stack.
+
+## [1.1.0] - 2026-07-26
 
 ### Milestone 6 — Production validation, scalability and operational readiness
 

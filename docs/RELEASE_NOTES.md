@@ -157,6 +157,11 @@ Environment-dependent, not product defects:
   but exercising it needs 10 MB of output.
 - **Electron desktop shell** not launched; the binary download is blocked here.
   Browser build, tests and typecheck all pass.
+- **One flaky pre-existing test** (`test_path_label_uses_the_route_template`,
+  M5, untouched by M7): seen once in five full PostgreSQL runs when `12345`
+  collided with a float timing value in the metrics body. Verified not a
+  labelling defect — no `path=` label ever carried a raw id, 5/5 in isolation,
+  and a full re-run passed 1492. Tracked as M7-7.
 
 Full list: [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 

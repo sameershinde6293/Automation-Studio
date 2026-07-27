@@ -356,6 +356,35 @@ The M7 regression tests were checked against the pre-fix code: 6 fail without
 the M7-F2 fix, and the M7-F1 suite cannot even import. They are real guards, not
 tautologies.
 
+### Final validation from a pristine GitHub clone
+
+The figures above were re-measured on the pushed commit, cloned fresh from
+GitHub — install, migrate, test, build, boot, run examples, shut down:
+
+| Check | Result |
+| --- | --- |
+| Backend, SQLite | 1484 passed, 8 skipped |
+| Backend, PostgreSQL 16.2 | **1492 passed, 0 skipped** |
+| Frontend | 179 passed · typecheck clean · build clean |
+| Startup / readiness | `1.1.0-rc1`, all checks `ok` |
+| Examples | **4/4 executed** |
+| Graceful shutdown | clean |
+
+**One flake was observed and run to ground.** The first PostgreSQL run of the
+fresh clone reported `1 failed, 1491 passed` in
+`test_path_label_uses_the_route_template` — a **pre-existing M5 test that M7
+never touched**. It asserts `"12345" not in body` after requesting
+`/api/workflows/12345`, to prove metric path labels use the route template
+rather than raw ids. The string appeared inside an unrelated **float timing
+value** (`0.09123452199992244`) in the histogram output.
+
+Verified before drawing any conclusion: **no `path=` label contained a raw id**,
+the test passed **5/5 in isolation**, and a full re-run was **1492 passed, zero
+failures**. The metric cardinality protection works; the assertion is simply
+scoped to the whole response body rather than to `path=` labels. Recorded as
+**M7-7** rather than silently re-run — and deliberately not "fixed", since
+editing a working test to chase a rare substring collision is out of M7 scope.
+
 ---
 
 ## 10. Remaining known limitations

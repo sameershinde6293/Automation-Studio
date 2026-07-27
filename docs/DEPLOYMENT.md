@@ -21,7 +21,7 @@ How to run Creator OS as a server. For the local desktop application see
 > configuration validation, JSON logging with **verified secret redaction**,
 > graceful shutdown, restart with data intact, and `pg_dump` → destructive
 > delete → restore recovering every row. The full backend suite passes against
-> PostgreSQL with **zero skips** (1446 tests).
+> PostgreSQL with **zero skips** (1492 tests).
 >
 > **Still unverified:** the **Docker layer itself** — image build and
 > `docker compose up`. No container runtime has been available in M5, M6 *or*

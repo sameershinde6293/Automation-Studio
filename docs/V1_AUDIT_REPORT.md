@@ -9,7 +9,7 @@
 > silently ignored, leaving deployments unauthenticated.
 >
 > For current, evidence-backed status see **`M7_RELEASE_AUDIT.md`**
-> (1487 backend tests, 179 frontend, 89% coverage, 88% readiness).
+> (1492 backend tests, 179 frontend, 89% coverage, 88% readiness).
 > Retained only as a record of what was believed at V1.0.
 
 

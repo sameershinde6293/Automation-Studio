@@ -66,8 +66,8 @@ Everything below was executed. Nothing is inferred.
 
 | | |
 | --- | --- |
-| Backend tests (SQLite) | **1487 passed**, 8 skipped, 0 failed |
-| Backend tests (PostgreSQL 16.2) | **1446 passed, 0 skipped**, 0 failed |
+| Backend tests (SQLite) | **1484 passed**, 8 skipped, 0 failed |
+| Backend tests (PostgreSQL 16.2) | **1492 passed, 0 skipped**, 0 failed |
 | Backend coverage | **89%** |
 | Frontend tests | **179 passed** |
 | Typecheck / production build | clean · 343.85 kB (109.08 kB gzip) |

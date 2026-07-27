@@ -86,7 +86,7 @@ posture asserted (`/docs` 404, unauthenticated API 401, host-header injection
 absent from logs). Migrations upgrade/downgrade/round-trip and a full
 downgrade-to-base cycle leaving **zero orphaned enum types**. Backup →
 destructive delete → restore recovering every row. Restart persistence.
-**1487 backend tests** on SQLite; **1446 with zero skips** on PostgreSQL;
+**1484 passed / 8 skipped** on SQLite (1492 collected); **1492 with zero skips** on PostgreSQL;
 **179 frontend**; 89% coverage; clean typecheck and production build; **4/4
 examples executed**.
 

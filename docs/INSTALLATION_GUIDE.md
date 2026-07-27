@@ -151,7 +151,7 @@ Expected on a healthy install:
 
 ```
 4/4 examples passed
-1487 passed, 8 skipped          # skips are PostgreSQL-gated by design
+1484 passed, 8 skipped          # skips are PostgreSQL-gated by design
 179 passed                      # frontend
 ```
 
@@ -178,7 +178,7 @@ cd backend && ./.venv/bin/alembic upgrade head      # creates 19 tables
 The `psycopg[binary]` driver is already in `requirements.txt` — no libpq headers
 or compiler needed.
 
-Verified in M7 against PostgreSQL 16.2: full test suite (1446 passed, zero
+Verified in M7 against PostgreSQL 16.2: full test suite (1492 passed, zero
 skips), migrations, upgrade/downgrade/round-trip, production boot, backup and
 restore. See [DEPLOYMENT.md](DEPLOYMENT.md) for the full server procedure and
 [M7_RELEASE_AUDIT.md](M7_RELEASE_AUDIT.md) §4 for the evidence.

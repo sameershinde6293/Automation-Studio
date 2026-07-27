@@ -169,7 +169,7 @@ all optional. This was previously scattered; it is now in `README.md` and
 Real PostgreSQL **16.2** (embedded `pgserver` build), TCP on `127.0.0.1:55432`,
 `max_connections=200`.
 
-**The full backend suite was run against it: 1446/1446 passed, zero skips.**
+**The full backend suite was run against it: 1492/1492 passed, zero skips.**
 
 This closes **M6-5**, which M6 had to leave open: the 8 PostgreSQL migration
 regression tests skip unless `TEST_POSTGRES_URL` is set, and no PostgreSQL was
@@ -325,7 +325,7 @@ example's own `tls_note`.
 
 | Item | Assessment |
 | --- | --- |
-| `release_notes.txt` (repo root) | **Stale.** Claims "Version 1.0.0 … ready for production" and "All 17 backend subsystem tests pass" against an actual 1487. Superseded by `docs/RELEASE_NOTES.md` |
+| `release_notes.txt` (repo root) | **Stale.** Claims "Version 1.0.0 … ready for production" and "All 17 backend subsystem tests pass" against an actual 1492. Superseded by `docs/RELEASE_NOTES.md` |
 | `docs/RELEASE_NOTES.md` | **Stale.** Described 0.3.0-alpha. Rewritten for 1.1.0-rc1 |
 | `docs/V1_AUDIT_REPORT.md` | Historical V1.0 document asserting "production-ready" on 17 tests. Retained as history, but it contradicts current status |
 | `docs/TODO.md` | Says "Version 1.0 is feature-complete"; its four "future" items are all now built |
@@ -344,8 +344,8 @@ Per the M7 rule — *remove only verified dead code* — **nothing was deleted.*
 
 | Suite | Result |
 | --- | --- |
-| Backend, SQLite | **1487 passed**, 8 skipped (PostgreSQL-gated), 0 failed |
-| Backend, PostgreSQL 16.2 | **1446 passed**, **0 skipped**, 0 failed |
+| Backend, SQLite | **1484 passed**, 8 skipped (PostgreSQL-gated), 0 failed |
+| Backend, PostgreSQL 16.2 | **1492 passed**, **0 skipped**, 0 failed |
 | Backend coverage | **89%** (7734 statements, 875 uncovered) |
 | Frontend | **179 passed**, 13 files |
 | Frontend typecheck | clean |

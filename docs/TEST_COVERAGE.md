@@ -4,8 +4,8 @@
 
 | Suite | Tests | Status |
 | --- | --- | --- |
-| Backend — SQLite (default) | **1487 passed**, 8 skipped | ✅ |
-| Backend — PostgreSQL 16.2 | **1446 passed, 0 skipped** | ✅ |
+| Backend — SQLite (default) | **1484 passed**, 8 skipped (1492 collected) | ✅ |
+| Backend — PostgreSQL 16.2 | **1492 passed, 0 skipped** | ✅ |
 | Backend line coverage | **89%** (7734 statements, 875 uncovered) | ✅ measured, not estimated |
 | Frontend (Vitest, 13 files) | **179 passed** | ✅ |
 | Frontend typecheck (`tsc --noEmit`) | clean | ✅ |
@@ -33,7 +33,7 @@ were confirmed to detect the defects they describe.
 ```bash
 ./scripts/ci-local.sh                              # all of the below
 
-cd backend && ./.venv/bin/python -m pytest -q      # 1487
+cd backend && ./.venv/bin/python -m pytest -q      # 1484 passed, 8 skipped
 cd frontend && npm test && npm run typecheck       # 179
 python scripts/verify_examples.py                  # 4/4 examples
 

@@ -147,7 +147,7 @@ to isolate mutually untrusting users.
 
 **Does it work with PostgreSQL?**
 Yes, and that is the only supported server database. Verified in M7 against
-PostgreSQL 16.2: the full suite (1446 passed, zero skips), migrations,
+PostgreSQL 16.2: the full suite (1492 passed, zero skips), migrations,
 upgrade/downgrade/round-trip, production boot, backup and restore.
 
 **Is Docker verified?**
@@ -197,7 +197,7 @@ runs the same checks locally.
 **How do I run the tests?**
 
 ```bash
-cd backend && ./.venv/bin/python -m pytest -q     # 1487 passed
+cd backend && ./.venv/bin/python -m pytest -q     # 1484 passed, 8 skipped
 cd frontend && npm test                           # 179 passed
 python scripts/verify_examples.py                 # 4/4 examples
 ./scripts/ci-local.sh                             # everything

@@ -105,7 +105,7 @@ Release Candidate 1. Verified on 2026-07-27:
 
 | | |
 | --- | --- |
-| Backend tests | **1487 passed** (SQLite) · **1446 passed, 0 skipped** (PostgreSQL 16.2) |
+| Backend tests | **1484 passed / 8 skipped** (SQLite) · **1492 passed, 0 skipped** (PostgreSQL 16.2) |
 | Backend coverage | **89%** |
 | Frontend tests | **179 passed** |
 | Typecheck / production build | clean |
@@ -184,7 +184,7 @@ backend/           FastAPI + SQLAlchemy 2 + Alembic
   app/domain/      ORM models and repositories
   app/services/    Workflow engine, AI orchestration, media, security, plugins
   app/infrastructure/  Config, database, logging, metrics, scheduler
-  tests/           1487 tests
+  tests/           1492 tests
 
 examples/          Executable example workflows
 scripts/           Build, local CI, smoke tests, load test, example verifier

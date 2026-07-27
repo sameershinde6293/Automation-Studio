@@ -543,7 +543,7 @@ with a stable code.
 | --- | --- | --- |
 | Backend, no PostgreSQL | 1446 | **1438 passed, 8 skipped**, 0 failed |
 | Backend, with PostgreSQL | 1446 | **1446 passed, 0 skipped**, 0 failed |
-| Backend, repeat runs | 1446 | 0 failed (see flake note below) |
+| Backend, repeat runs (PostgreSQL) | 1446 | 4 further runs, 0 failed, 0 segfaults |
 | Frontend (vitest) | 179 | **179 passed**, 13 files |
 | Frontend typecheck (`tsc --noEmit`) | — | clean |
 | Frontend production build | 1735 modules | ✅ 109 kB gzipped |
@@ -581,6 +581,30 @@ Conclusion: wall-clock budgets under full-suite CPU contention. Recorded in
 KNOWN_ISSUES.md (M6-4). Not "fixed" by widening the timeouts, because editing
 working tests to chase a scheduling artifact is how a real regression gets
 masked — and the M6 brief is explicit about not rewriting working code.
+
+### A segfault, investigated rather than re-run
+
+During final re-verification (after a sandbox rebuild) one PostgreSQL-enabled
+full-suite run died with a **segmentation fault** at ~288 tests, inside the
+`psycopg_binary` C extension during a threaded ORM flush. This is a driver
+crash, not a Python exception, so nothing was reported as "failed" — exactly
+the kind of result that is easy to re-run and forget.
+
+It was not dismissed. What was established:
+
+| Check | Result |
+| --- | --- |
+| Pristine M5 `a92af1b`, same PG database, full suite | **No segfault** — so it could not be waved off as purely environmental |
+| Reproducible? | **No.** Four subsequent PG-enabled full runs were clean |
+| M6 PG fixtures audited for connection leaks | Found two `create_engine` calls whose `dispose()` was not exception-safe |
+| After hardening (schema reset disposes in `finally`) | 1446/1446 passed, **zero** segfaults across the remaining runs |
+
+The hygiene fix is a genuine improvement — an abandoned psycopg connection is
+a real hazard when engine work crosses threads — but honesty requires stating
+that **a non-deterministic C-extension crash cannot be proven eliminated by
+four clean runs.** It is recorded as KNOWN_ISSUES M6-6 with the durable fix
+named (run the PostgreSQL tests in an isolated pytest process). This is the
+single least-settled result in M6.
 
 ---
 

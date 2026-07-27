@@ -84,20 +84,30 @@ def run_alembic(*args, database_url: str):
     )
 
 
+def _reset_schema() -> None:
+    """Drop and recreate ``public``, always releasing the connection.
+
+    ``dispose()`` is in a ``finally`` so a failure mid-reset cannot leak a
+    PostgreSQL backend into the rest of the session. Leaked connections are
+    not merely untidy here: the suite runs engine work across threads, and an
+    abandoned psycopg connection has been observed to destabilise the driver's
+    C extension on teardown.
+    """
+    engine = create_engine(POSTGRES_URL)
+    try:
+        with engine.begin() as connection:
+            connection.execute(text("DROP SCHEMA public CASCADE"))
+            connection.execute(text("CREATE SCHEMA public"))
+    finally:
+        engine.dispose()
+
+
 @pytest.fixture
 def clean_pg():
     """A completely empty public schema, restored again afterwards."""
-    engine = create_engine(POSTGRES_URL)
-    with engine.begin() as connection:
-        connection.execute(text("DROP SCHEMA public CASCADE"))
-        connection.execute(text("CREATE SCHEMA public"))
-    engine.dispose()
+    _reset_schema()
     yield POSTGRES_URL
-    engine = create_engine(POSTGRES_URL)
-    with engine.begin() as connection:
-        connection.execute(text("DROP SCHEMA public CASCADE"))
-        connection.execute(text("CREATE SCHEMA public"))
-    engine.dispose()
+    _reset_schema()
 
 
 def enum_types(url: str) -> set[str]:

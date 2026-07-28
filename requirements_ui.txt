@@ -1,0 +1,3 @@
+# Optional: Phase D.4 PyQt6 main window (`python main.py ui`).
+# The CLI and the full test suite work without this package.
+PyQt6>=6.5,<7

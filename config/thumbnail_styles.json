@@ -1,0 +1,90 @@
+{
+  "version": "1.0",
+  "default_style": "dark_history",
+  "default_count": 5,
+  "max_variations": 5,
+  "width": 1280,
+  "height": 720,
+  "jpeg_quality": 92,
+  "note": "Thumbnail style cards for thumbnail_generator. Accent palette kept in sync with intro_outro_templates.json so channel branding matches across intro, outro, and thumbnails.",
+  "styles": [
+    {
+      "id": "dark_history",
+      "background_top": "#1A1A2E",
+      "background_bottom": "#0D0D1A",
+      "overlay_opacity": 0.55,
+      "vignette": true,
+      "accent_color": "#8B0000",
+      "ornament": "accent_bar",
+      "title_color": "#FFFFFF",
+      "title_size": 80,
+      "channel_color": "#CCCCCC",
+      "channel_size": 34
+    },
+    {
+      "id": "mystery",
+      "background_top": "#0B1E33",
+      "background_bottom": "#050D18",
+      "overlay_opacity": 0.50,
+      "vignette": true,
+      "accent_color": "#4A90D9",
+      "ornament": "accent_bar",
+      "title_color": "#FFFFFF",
+      "title_size": 78,
+      "channel_color": "#C9DCEF",
+      "channel_size": 34
+    },
+    {
+      "id": "true_crime",
+      "background_top": "#2B0A0A",
+      "background_bottom": "#120404",
+      "overlay_opacity": 0.55,
+      "vignette": true,
+      "accent_color": "#FF0000",
+      "ornament": "double_bar",
+      "title_color": "#FFFFFF",
+      "title_size": 78,
+      "channel_color": "#E8C8C8",
+      "channel_size": 34
+    },
+    {
+      "id": "historical",
+      "background_top": "#2E2410",
+      "background_bottom": "#171106",
+      "overlay_opacity": 0.50,
+      "vignette": true,
+      "accent_color": "#C9A227",
+      "ornament": "frame_lines",
+      "title_color": "#F5E9C9",
+      "title_size": 76,
+      "channel_color": "#D9CBA8",
+      "channel_size": 34
+    },
+    {
+      "id": "conspiracy",
+      "background_top": "#0A2013",
+      "background_bottom": "#03100A",
+      "overlay_opacity": 0.50,
+      "vignette": true,
+      "accent_color": "#00FF41",
+      "ornament": "frame_lines",
+      "title_color": "#E8FFE8",
+      "title_size": 76,
+      "channel_color": "#B9E8C5",
+      "channel_size": 34
+    },
+    {
+      "id": "default",
+      "background_top": "#23262B",
+      "background_bottom": "#101216",
+      "overlay_opacity": 0.55,
+      "vignette": true,
+      "accent_color": "#B0B6BF",
+      "ornament": "accent_bar",
+      "title_color": "#FFFFFF",
+      "title_size": 80,
+      "channel_color": "#C9CDD3",
+      "channel_size": 34
+    }
+  ]
+}

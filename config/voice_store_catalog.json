@@ -1,0 +1,22 @@
+{
+  "version": "1.0",
+  "voices": [],
+  "engines": [
+    {
+      "id": "piper",
+      "display_name": "Piper TTS",
+      "ram_required_mb": 512
+    },
+    {
+      "id": "kokoro",
+      "display_name": "Kokoro TTS",
+      "ram_required_mb": 1024
+    },
+    {
+      "id": "xtts",
+      "display_name": "XTTS v2",
+      "ram_required_mb": 4096
+    }
+  ],
+  "note": "Catalog populated when voice store is used; not loaded at startup"
+}

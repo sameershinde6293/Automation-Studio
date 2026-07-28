@@ -1,0 +1,27 @@
+# OPTIONAL: Coqui XTTS v2 (voice cloning, high quality, high RAM)
+#
+# WARNING: Coqui TTS 0.22.x historically pins numpy==1.22.0 which conflicts
+# with Autopilot's default numpy>=1.24. Install only if you need XTTS.
+#
+# Recommended approach on Windows:
+#   1. Keep default venv on requirements.txt (numpy 1.24+)
+#   2. Create a SEPARATE venv for experiments, OR
+#   3. Try installing without forcing numpy downgrade:
+#
+#      pip install "TTS>=0.22.0" --no-deps
+#      pip install any missing TTS deps EXCEPT numpy (keep 1.24+)
+#
+# If TTS refuses to run without numpy 1.22, use a dedicated venv:
+#   python -m venv venv_xtts
+#   venv_xtts\Scripts\activate
+#   pip install numpy==1.22.0 "TTS>=0.22.0"
+#
+# Autopilot itself does NOT require XTTS for core pipeline tests.
+# Piper + Kokoro cover default documentary generation.
+
+TTS>=0.22.0
+
+# Notes:
+# - First XTTS use downloads ~1.8GB of models
+# - Prefer 8GB+ RAM; unload after use (lazy load rules)
+# - Not installed by setup.bat by default

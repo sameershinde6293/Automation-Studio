@@ -1,0 +1,12 @@
+{
+  "enabled": false,
+  "credentials_file": "config/drive_service_account.json",
+  "folder_id": "",
+  "chunk_size_mb": 8,
+  "resume_pending_on_run": true,
+  "connect_timeout_seconds": 10,
+  "read_timeout_seconds": 120,
+  "mime_types": {},
+  "drive_endpoints": {},
+  "_comment": "D.7 Google Drive backup. Uploads run ONLY when enabled is true AND a service-account JSON exists at credentials_file (share your Drive folder with its client_email). chunk_size_mb must be a multiple of 0.25 (256 KiB quantum). Interrupted uploads persist in cache/drive_upload_state and resume automatically on the next render or via the Settings page button. drive_endpoints/mime_types are advanced overrides (endpoints exist for offline tests); leave them empty in production. See docs/DRIVE_UPLOAD.md."
+}

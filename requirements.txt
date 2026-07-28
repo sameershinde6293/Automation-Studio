@@ -1,0 +1,97 @@
+# Autopilot - Documentary Video Automation Software
+# Python 3.10+ required (3.11 recommended)
+#
+# DEFAULT INSTALL (Windows & Linux) — no Coqui TTS / no numpy pin war:
+#   pip install -r requirements.txt
+#
+# Optional XTTS later (may require older numpy on some platforms):
+#   pip install -r requirements_tts_optional.txt
+#
+# Install with: pip install -r requirements.txt
+
+# ============================================================
+# USER INTERFACE
+# ============================================================
+PyQt6>=6.6.0
+PyQt6-Qt6>=6.6.0
+PyQt6-sip>=13.6.0
+qtawesome>=1.3.0
+
+# ============================================================
+# IMAGE PROCESSING
+# ============================================================
+Pillow>=10.0.0
+numpy>=1.24.0,<2.0.0
+
+# ============================================================
+# AUDIO PROCESSING
+# ============================================================
+pydub>=0.25.1
+soundfile>=0.12.1
+
+# ============================================================
+# TEXT TO SPEECH (core engines — no Coqui/XTTS here)
+# ============================================================
+# Kokoro TTS (optional but supported; pure pip)
+kokoro-onnx>=0.3.0
+onnxruntime>=1.16.0
+
+# Piper TTS is a standalone executable (no pip package required).
+# Place piper.exe (Windows) or piper (Linux) in engines/piper/
+
+# Coqui XTTS is OPTIONAL — see requirements_tts_optional.txt
+# Do NOT install TTS/Coqui in the default path (conflicts with numpy>=1.24).
+
+# ============================================================
+# DOCUMENT PARSING
+# ============================================================
+python-docx>=1.1.0
+pdfplumber>=0.10.0
+chardet>=5.2.0
+
+# ============================================================
+# SUBTITLE PROCESSING
+# ============================================================
+pysrt>=1.1.2
+
+# ============================================================
+# SECURITY AND LICENSE
+# ============================================================
+cryptography>=41.0.0
+# wmi is Windows-only (Phase C license HWID); install on Windows if needed:
+#   pip install wmi>=1.5.1
+
+# ============================================================
+# FUZZY MATCHING
+# ============================================================
+thefuzz>=0.20.0
+python-Levenshtein>=0.23.0
+
+# ============================================================
+# NETWORKING (for voice store downloads)
+# ============================================================
+requests>=2.31.0
+
+# ============================================================
+# SYSTEM MONITORING
+# ============================================================
+psutil>=5.9.0
+
+# ============================================================
+# DEVELOPMENT / QUALITY
+# ============================================================
+black>=23.0.0
+ruff>=0.1.0
+mypy>=1.5.0
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-mock>=3.11.0
+memory-profiler>=0.61.0
+
+# ============================================================
+# NOTES
+# ============================================================
+# FFmpeg: engines/ffmpeg/ffmpeg.exe (Windows) or engines/ffmpeg/ffmpeg (Linux)
+# Default TTS path: Piper (subprocess) and/or Kokoro (pip)
+# XTTS: optional advanced install via requirements_tts_optional.txt
+# Lazy-load TTS engines — never import heavy TTS stacks at startup.

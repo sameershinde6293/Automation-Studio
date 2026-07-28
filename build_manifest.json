@@ -1,0 +1,260 @@
+{
+  "software": "Autopilot",
+  "version": "3.1.0",
+  "build_date": "2026-07-27",
+  "phases": [
+    {
+      "phase": "A",
+      "status": "complete",
+      "scope": "foundation, 25-table schema, core services"
+    },
+    {
+      "phase": "B",
+      "status": "complete",
+      "scope": "engine modules B.1-B.12, Windows-verified"
+    },
+    {
+      "phase": "C",
+      "status": "complete",
+      "scope": "license, quality, voice store, batch, thumbnails"
+    },
+    {
+      "phase": "D",
+      "status": "complete",
+      "scope": "core_engine orchestrator, CLI, PyQt6 UI, exe build system"
+    },
+    {
+      "phase": "D.7",
+      "status": "complete",
+      "scope": "Google Drive resumable upload stage (offline-graceful, self-skipping), 20 modules / 18 stages"
+    },
+    {
+      "phase": "D.8",
+      "status": "complete",
+      "scope": "plugin interface: plugins/ file-path loading, PLUGIN_API=1 contract, CLI plugin command"
+    },
+    {
+      "phase": "D.9",
+      "status": "complete",
+      "scope": "Inno Setup installer assets (compile on Windows)"
+    },
+    {
+      "phase": "UI.1",
+      "status": "complete",
+      "scope": "splash, toolbar, model-driven menus, status bar, shortcuts, theme switcher"
+    },
+    {
+      "phase": "UI.2",
+      "status": "complete",
+      "scope": "Studio page: import (drag-drop + staging), preview player, timeline panel"
+    },
+    {
+      "phase": "UI.3",
+      "status": "complete",
+      "scope": "dialogs: new project, crash recovery, render complete (Drive-aware)"
+    },
+    {
+      "phase": "UI.4",
+      "status": "complete",
+      "scope": "spec File 04 five-feature polish: 3 format-labelled import drop zones (JSON visible), visual timeline scene cards with thumbnails, full 7-menu bar (File/Edit/View/Project/Render/Tools/Help), pre-render report dialog, render-complete dialog with thumbnail preview + YouTube chapters + open folder/play"
+    },
+    {
+      "phase": "UI.5-SPEC",
+      "status": "complete",
+      "scope": "ui_specification.txt reconciliation: preview tabs (player/storyboard/details+scene bar), visual timeline (markers+waveform+context menu+drag reorder+undo), full Section-5 menu bar (4 themes, scene ops, ZIP/backup, all Tools dialogs), Voice Clone/Engine Install/Key Generator dialogs, Grade/Audio/Voice Store/Batch pages as new nav pages, collapsible render progress panel, toast notifications, first-run wizard, channel profile manager, autosave rotation"
+    },
+    {
+      "phase": "UI.6-SHIP-1.0",
+      "status": "complete",
+      "scope": "Full ui_specification.txt 33-item ship: splash logo+loading bar, License Screen with HWID, 3-panel layout (left nav|center|right Inspector), 5 import drop zones (music/voice-over/video), toolbar profile dropdown + license status, fullscreen F11, window memory, tooltips, icons everywhere, Montserrat font, card-style panels, gradient progress chunk, hover effects.",
+      "files_changed": [
+        "ui/viewmodel.py",
+        "ui/app.py",
+        "ui/theme.py",
+        "ui/dialogs/app_dialogs.py",
+        "ui/panels/timeline_panel.py",
+        "tests/unit/test_ui_ship_vm.py",
+        "tests/unit/test_ui_studio.py",
+        "tests/unit/test_ui_app_qt.py"
+      ]
+    },
+    {
+      "phase": "UI.7-FIXES-1.0.1",
+      "status": "complete",
+      "scope": "Deep-UI-analysis fixes: Fusion style + #1A1A2E dark palette (dark theme actually dark on Windows), wider QSS coverage (QTextEdit/spinboxes/scroll areas), Voice Store engine-install wizard strip, Inspector app stats + quick actions, complete toolbar (Pause/Batch/Help), status bar RAM/CPU + project + FFmpeg, rich empty states with icons+CTAs, tooltips on all buttons, menu shortcut display, toasts on save/theme, Tools -> Setup Wizard entry.",
+      "files_changed": [
+        "ui/theme.py",
+        "ui/viewmodel.py",
+        "ui/app.py",
+        "ui/panels/voice_panel.py",
+        "ui/panels/batch_panel.py",
+        "ui/panels/timeline_panel.py",
+        "ui/panels/preview_panel.py",
+        "ui/panels/progress_panel.py",
+        "config/keyboard_shortcuts.json",
+        "tests/unit/test_ui_chrome.py",
+        "tests/unit/test_ui_studio.py",
+        "tests/unit/test_ui_app_qt.py",
+        "tests/unit/test_ui_ship_vm.py"
+      ]
+    },
+    {
+      "phase": "UI.8-EXPORTS-1.1.0",
+      "status": "complete",
+      "scope": "53-item closure on top of 1.0.1: audio fade-in/out controls (item 21) + File>Export submenu with 5 partial-workflow exports (items 35-39): Audio Only (TTS seam, honest fallback), Audio Mix (FFmpeg amix), Burn Subtitles (FFmpeg subtitles filter, Windows path escaping), Thumbnails Only (vm jobs + QPixmap scaling), Storyboard PDF (stdlib PDF writer, JPEG DCTDecode). ExportJobDialog parameterized per kind; jobs run on the render worker with progress/toasts; FFmpeg commands logged (RULE 4). All remaining items verified present from 1.0.1.",
+      "files_changed": [
+        "ui/viewmodel.py",
+        "ui/app.py",
+        "ui/dialogs/app_dialogs.py",
+        "ui/panels/audio_panel.py",
+        "tests/unit/test_ui_ship_vm.py",
+        "tests/unit/test_ui_app_qt.py"
+      ],
+      "verification": "superseded by UI.9 drop"
+    },
+    {
+      "phase": "UI.9-V3-STUDIO-3.0.0",
+      "date": "2026-07-19",
+      "summary": "v3.0 master spec: 5 new control pages (Voice Controls, Transitions, Scene Controls, Subtitle Designer, Export Settings) + dockable Inspector + 10 workspaces + voice preview seam + stdlib waveform peaks + audio mutes + subtitle force_style + export-profile-aware burns.",
+      "tests": "692 passed, 5 skipped, 0 failed (sandbox, both modes)"
+    },
+    {
+      "phase": "UI.10-REVIEW-3.0.1",
+      "date": "2026-07-19",
+      "summary": "Expert-review fixes: elided Inspector text (tooltip paths), compact bottom stage strip (current stage + %), single Inspector header, Grade page = grading only (tabs moved to v3.0 pages), swatch-only subtitle colour buttons, engine found/not-found indicators, PEP-701 storyboard footer fix carried in from the 3.0 respin.",
+      "tests": "693 passed, 5 skipped, 0 failed (sandbox, both modes)"
+    },
+    {
+      "phase": "UI.11-REVIEW-3.0.2",
+      "date": "2026-07-19",
+      "summary": "Review round-2: master volume round-trip (bug: written on save, never read back), Transitions panel loads the selected scene's type+duration, Voice Controls order fixed (reverb type / breathing toggle before their amount sliders), slider value labels fixed 48px wide.",
+      "tests": "694 passed, 5 skipped, 0 failed (sandbox, both modes)"
+    },
+    {
+      "phase": "UI.12-REVIEW-3.0.3",
+      "date": "2026-07-19",
+      "summary": "Review round-3: 'Admin Key Generator' renamed to customer-facing 'My License / Machine ID' (no id/object changes), batch queue selection survives refresh, Scene Details blank row off-by-one fixed (7->6 labels), Transitions preserves selection across reloads, Voice Store language filter now catalog-driven, Voice Clone gated by an explicit consent checkbox.",
+      "tests": "696 passed, 5 skipped, 0 failed (sandbox, both modes)"
+    },
+    {
+      "phase": "UI.13-REVIEW-3.0.4",
+      "date": "2026-07-20",
+      "summary": "Review round-4 (expert suggestions 1-4): pre-render fuzzy image match report (engine-preferred, thefuzz/difflib fallback) with coloured Scene|Image|Status|Confidence section; Render Complete expandable inline warnings list; Revert buttons on Voice/Audio/Export/Subtitle/Grade panels; waveform click-to-seek with playhead, time axis and near-clipping legend.",
+      "tests": "700 passed, 5 skipped, 0 failed (both modes, extraction-verified)"
+    },
+    {
+      "phase": "UI.14-HOTFIX-3.0.5",
+      "date": "2026-07-20",
+      "summary": "Hotfix: startup crashed with 'MainWindow' object has no attribute 'inspector' — _build_inspector() fills inspector lines BEFORE self.inspector is assigned; _set_inspector_lines read self.inspector.width(). Guarded with getattr fallback. Qt-only startup path, invisible to the sandbox suite (PyQt6 cannot import here); new Qt startup pin added. Version named 3.0.5 (installer pin enforces 3-part semver over 3.0.4.1).",
+      "tests": "700 passed, 5 skipped, 0 failed (both modes, extraction-verified)"
+    },
+    {
+      "phase": "UI.15-LAYOUT-3.0.6",
+      "date": "2026-07-20",
+      "summary": "Review round-5 layout fixes: nav rail 180px, Inspector card 280-340px, center pages >=600px; Inspector word-wraps instead of middle-eliding (full app name + full hint sentence, full-text tooltips); global form spacing 12/10px and field min-widths on every page; QSS card/nav/control padding (8px+). Base font already 13px global in theme.",
+      "tests": "700 passed, 5 skipped, 0 failed (both modes, extraction-verified)"
+    },
+    {
+      "phase": "UI.16-SLIDERS-3.0.7",
+      "date": "2026-07-20",
+      "summary": "Round-6 slider readability: Export CRF slider replaced by QSpinBox 0-51 (vm CRF domain widened 14-35 to the codec's real 0-51); every other slider value label objectName 'sliderValue' + QSS bold 13px min-width 50px (Audio incl. ducking/fades/master, Grade 7 + LUT, Voice 5, Subtitle opacity). Dead QSlider/Qt imports removed from export panel.",
+      "tests": "700 passed, 5 skipped, 0 failed (both modes, extraction-verified)"
+    },
+    {
+      "phase": "UI.17-VOICE-READABILITY-3.0.8",
+      "date": "2026-07-20",
+      "summary": "Voice Controls readability: pause spinboxes (comma/sentence/paragraph/chapter) min-width 100px with ms suffix; preset Apply/Save/Delete buttons min 80x30; reverb dropdown min-width 200; pronunciation field min-width 300.",
+      "tests": "700 passed, 5 skipped, 0 failed (both modes, extraction-verified)"
+    },
+    {
+      "phase": "UI.18-PANEL-READABILITY-3.0.9",
+      "date": "2026-07-20",
+      "summary": "Audio/Subtitle/Voice readability sweep: spinboxes >=100px, combos >=200px (voice engine/voice/emotion 250px), line edits >=300px; slider value labels 60px bold 13px inline; subtitle color buttons show swatch + bold hex text with auto contrast (92x24).",
+      "tests": "700 passed, 5 skipped, 0 failed (both modes, extraction-verified)"
+    },
+    {
+      "phase": "ENGINE.1-RENDER-BLOCKER-3.1.0",
+      "date": "2026-07-21",
+      "summary": "Render blocker fixed: empty scene image path became Path('')=='.' whose exists() is True, so FFmpeg ran `-i .` and died 'Permission denied'. Guard in export_engine (empty -> descriptive early error, is_file() rejects directories, logs the resolved path); images stage now warns loudly when a script image isn't found instead of storing NULL silently; _scene_for_render self-heals from image_filename + images folder.",
+      "tests": "703 passed, 5 skipped, 0 failed (both modes, extraction-verified)"
+    },
+    {
+      "phase": "PHASE.6-NATURAL-PAUSES",
+      "date": "2026-07-27",
+      "summary": "Natural pauses & human pacing: new core/narration_pacing.py is the single source of truth for inter-line narration silence, replacing the flat 0.25s gap. Context-aware durations (punctuation class, emotion, speaker/scene change), breathing-aware widening, deterministic CRC32 jitter, anti-stacking (authored [PAUSE] tags + PHASE 5 paragraph batches), anti-robotic-rhythm nudge, excessive-silence guard and absolute clamps. One plan is shared by core_engine (word-timestamp offsets), audio_processor (build_narration_track pause_plan) and timeline_engine (scene durations), so subtitle/image sync is preserved exactly. Fully backward compatible: app_settings.natural_pauses_enabled=false restores Phase 1-5 behavior.",
+      "files_changed": [
+        "core/narration_pacing.py",
+        "core/core_engine.py",
+        "modules/audio_processor.py",
+        "modules/timeline_engine.py",
+        "modules/tts_engine_manager.py",
+        "config/app_settings.json",
+        "build/autopilot.spec"
+      ],
+      "tests": "sandbox suite identical to pre-change baseline: 734 passed / 35 failed / 6 skipped / 14 errors — every failure pre-existing (optional deps absent in sandbox). Zero regressions introduced. User performs functional QA."
+    },
+    {
+      "phase": "PHASE.7-EMOTION-PROSODY",
+      "date": "2026-07-27",
+      "summary": "Emotion & prosody enhancement: deterministic context-aware rate planning, important-word stress, punctuation/discourse phrase grouping, subtle duration-preserving intonation contours, and smoothed emotion transitions. Authored line emotions now reach synthesis. DSP inverse-maps word timestamps, pitch shifting preserves duration/sample rate, and inline-pause timestamps reuse the exact inserted duration so subtitle/timeline sync remains intact. Safe disabled/neutral fallbacks preserve the Phase 1-6 path.",
+      "files_changed": [
+        "core/narration_prosody.py",
+        "core/core_engine.py",
+        "modules/tts_engine_manager.py",
+        "config/app_settings.json",
+        "build/autopilot.spec"
+      ],
+      "verification": "py_compile, production import sweep, and PyInstaller analysis/build check; functional QA delegated to user"
+    },
+    {
+      "phase": "PHASE.9-DEFENSIVE-RELIABILITY",
+      "date": "2026-07-28",
+      "summary": "Defensive programming & reliability: new core/safe_io.py gives every layer crash-safe atomic writes (unique temp file + fsync + retrying os.replace), corrupt-file quarantine and stale-temp purging. Config, cache index, cache entries, narration/line WAVs, processed images and proxies, SRT sidecars, YouTube metadata, Drive resume state, pronunciation dictionaries and storyboard PDFs are now written atomically. FFmpeg processes are always reaped (terminate -> kill -> wait) and their stderr tail is reported on failure; partial render outputs and orphaned group/mux temp files are cleaned up. SQLite gains busy-retry, broken-connection recovery, an all-or-nothing transaction helper for script persistence, atomic backups and close_all(). Cancel now drains thread pools promptly, MemoryError is handled per stage, and log/cache folders degrade to a writable fallback instead of blocking boot. No behavior from Phases 1-8 changed.",
+      "files_changed": [
+        "core/safe_io.py",
+        "core/cache_service.py",
+        "core/config_service.py",
+        "core/core_engine.py",
+        "core/database_service.py",
+        "core/hardware_service.py",
+        "core/log_service.py",
+        "modules/audio_processor.py",
+        "modules/batch_engine.py",
+        "modules/drive_upload_engine.py",
+        "modules/export_engine.py",
+        "modules/image_processor.py",
+        "modules/sfx_engine.py",
+        "modules/subtitle_engine.py",
+        "modules/tts_engine_manager.py",
+        "ui/viewmodel.py",
+        "main.py",
+        "build/autopilot.spec"
+      ],
+      "verification": "py_compile clean; full-package import sweep clean; all config JSON valid; PyInstaller spec parses with core.safe_io hiddenimport; suite 757 passed / 26 failed / 6 skipped — failure set BIT-IDENTICAL to the pre-change baseline (all pre-existing: optional deps absent in sandbox). Functional QA delegated to user."
+    }
+  ],
+  "verification": {
+    "windows_test_suite": "544 passed / 4 skipped / 0 failed (D.6 gate)",
+    "agent_test_suite_d7": "566 passed / 5 skipped / 0 failed (both modes, sandbox)",
+    "windows_test_suite_d7": "pending user checkpoint",
+    "cli_render": "17/17 stages, real MP4 (Windows, 1.0 gate)",
+    "frozen_exe": "Autopilot.exe built; 19/19 modules at 1.0 gate; D.7 adds hiddenimport drive_upload_engine (rebuild to embed)",
+    "recorded": "2026-07-17: 1.0 6-gate Windows checkpoint ALL PASSED; D.7 sandbox gate below",
+    "agent_test_suite_d8d9": "587 passed / 5 skipped / 0 failed (both modes, sandbox)",
+    "windows_test_suite_d8d9": "pending user checkpoint",
+    "agent_test_suite_ui": "616 passed / 5 skipped / 0 failed (both modes, sandbox + extraction)",
+    "windows_test_suite_ui": "expect 630 passed / 4 skipped / 0 failed (14 Qt tests execute there)",
+    "agent_test_suite_ui4": "622 passed / 5 skipped / 0 failed (both modes, sandbox + extraction)",
+    "windows_test_suite_ui4": "expect 637 passed / 4 skipped / 0 failed (15 Qt tests execute there)",
+    "agent_test_suite_ui5": "641 passed / 5 skipped / 0 failed (both modes, sandbox + extraction)",
+    "windows_test_suite_ui5": "expect 656 passed / 4 skipped / 0 failed (15 Qt tests execute there)",
+    "agent_test_suite_ship10": "2026-07-18: 651 passed / 5 skipped / 0 failed (both modes)",
+    "windows_test_suite_ship10": "pending: expected 671 passed / 4 skipped / 0 failed",
+    "agent_test_suite_101": "2026-07-18: 658 passed / 5 skipped / 0 failed (both modes)",
+    "windows_test_suite_101": "pending: expected 681 passed / 4 skipped / 0 failed",
+    "agent_test_suite_110": "2026-07-18: 672 passed / 5 skipped / 0 failed (both modes)",
+    "windows_test_suite_110": "pending: expected 695 passed / 4 skipped / 0 failed",
+    "agent_test_suite_phase9": "757 passed / 26 failed / 6 skipped — identical failure set to the unmodified-main baseline captured in the same sandbox (zero regressions)"
+  },
+  "repo": "https://github.com/sameershinde6293/Autopilot"
+}

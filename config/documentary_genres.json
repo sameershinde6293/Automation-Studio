@@ -1,0 +1,75 @@
+{
+  "genres": [
+    {
+      "id": "dark_history",
+      "name": "Dark History",
+      "default_color_grade": "dark_moody",
+      "intro_template": "dark_history",
+      "outro_template": "dark_history"
+    },
+    {
+      "id": "mystery",
+      "name": "Mystery",
+      "default_color_grade": "ancient_mystery",
+      "intro_template": "mystery",
+      "outro_template": "mystery"
+    },
+    {
+      "id": "conspiracy",
+      "name": "Conspiracy",
+      "default_color_grade": "conspiracy",
+      "intro_template": "conspiracy",
+      "outro_template": "conspiracy"
+    },
+    {
+      "id": "true_crime",
+      "name": "True Crime",
+      "default_color_grade": "true_crime",
+      "intro_template": "true_crime",
+      "outro_template": "true_crime"
+    },
+    {
+      "id": "ancient_civilizations",
+      "name": "Ancient Civilizations",
+      "default_color_grade": "ancient_mystery",
+      "intro_template": "historical",
+      "outro_template": "historical"
+    },
+    {
+      "id": "horror_documentary",
+      "name": "Horror Documentary",
+      "default_color_grade": "horror_documentary",
+      "intro_template": "mystery",
+      "outro_template": "mystery"
+    },
+    {
+      "id": "space_documentary",
+      "name": "Space Documentary",
+      "default_color_grade": "space_documentary",
+      "intro_template": "mystery",
+      "outro_template": "mystery"
+    },
+    {
+      "id": "war_documentary",
+      "name": "War Documentary",
+      "default_color_grade": "war_documentary",
+      "intro_template": "historical",
+      "outro_template": "historical"
+    },
+    {
+      "id": "investigation",
+      "name": "Investigation",
+      "default_color_grade": "investigation",
+      "intro_template": "true_crime",
+      "outro_template": "true_crime"
+    },
+    {
+      "id": "historical",
+      "name": "Historical Documentary",
+      "default_color_grade": "vintage_1950s",
+      "intro_template": "historical",
+      "outro_template": "historical"
+    }
+  ],
+  "default": "dark_history"
+}

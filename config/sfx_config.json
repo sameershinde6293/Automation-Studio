@@ -1,0 +1,149 @@
+{
+  "enabled": true,
+  "default_volume": 0.6,
+  "volume_defaults": {
+    "transitions": 0.6,
+    "impact": 0.7,
+    "ambient": 0.3,
+    "emotional": 0.4,
+    "atmospheric": 0.3,
+    "stings": 0.7,
+    "dramatic": 0.7,
+    "historical": 0.55,
+    "horror": 0.5,
+    "nature": 0.35,
+    "mechanical": 0.45,
+    "crowd": 0.55
+  },
+  "categories": {
+    "transitions": [
+      "dark_whoosh_left",
+      "dark_whoosh_right",
+      "subtle_swoosh",
+      "dramatic_boom"
+    ],
+    "ambient": [
+      "ominous_drone",
+      "clock_ticking",
+      "wind_howling",
+      "forest_ambience",
+      "city_1900s"
+    ],
+    "atmospheric": [
+      "ominous_drone",
+      "clock_ticking",
+      "church_bell",
+      "crowd_murmur"
+    ],
+    "dramatic": [
+      "dramatic_boom",
+      "low_brass_boom",
+      "heavy_thud"
+    ],
+    "emotional": [
+      "heartbeat_slow",
+      "heartbeat_fast"
+    ],
+    "historical": [
+      "church_bell",
+      "battlefield",
+      "marching_footsteps"
+    ],
+    "horror": [
+      "ominous_string_sting",
+      "horror_piano_chord",
+      "door_creaking"
+    ],
+    "nature": [
+      "distant_thunder",
+      "wind_howling",
+      "water_dripping"
+    ],
+    "mechanical": [
+      "clock_ticking",
+      "typewriter",
+      "radio_static"
+    ],
+    "crowd": [
+      "crowd_murmur",
+      "crowd_gasp"
+    ],
+    "stings": [
+      "ominous_string_sting",
+      "horror_piano_chord",
+      "low_brass_boom"
+    ],
+    "transitions_extra": [
+      "page_turn",
+      "film_reel",
+      "static_burst"
+    ]
+  },
+  "keyword_triggers": {
+    "death": "church_bell",
+    "died": "church_bell",
+    "killed": "church_bell",
+    "funeral": "church_bell",
+    "war": "battlefield",
+    "battle": "battlefield",
+    "armies": "battlefield",
+    "fought": "battlefield",
+    "cannon": "battlefield",
+    "drums": "marching_footsteps",
+    "horror": "horror_piano_chord",
+    "terror": "heartbeat_slow",
+    "fear": "heartbeat_slow",
+    "panic": "heartbeat_fast",
+    "victory": "crowd_gasp",
+    "cheer": "crowd_gasp",
+    "tension": "heartbeat_slow",
+    "meanwhile": "dark_whoosh_left",
+    "however": "dark_whoosh_left",
+    "therefore": "dark_whoosh_right",
+    "shocking": "dramatic_boom",
+    "revealed": "dramatic_boom",
+    "bombshell": "dramatic_boom",
+    "plague": "ominous_drone",
+    "church": "church_bell",
+    "night": "wind_howling",
+    "investigation": "clock_ticking",
+    "evidence": "typewriter",
+    "document": "typewriter",
+    "classified": "radio_static",
+    "conspiracy": "radio_static",
+    "haunted": "door_creaking",
+    "abandoned": "door_creaking",
+    "thunder": "distant_thunder"
+  },
+  "file_map": {
+    "battlefield": "assets/sfx/historical/battlefield.wav",
+    "church_bell": "assets/sfx/atmospheric/church_bell.wav",
+    "city_1900s": "assets/sfx/ambient/city_1900s.wav",
+    "clock_ticking": "assets/sfx/ambient/clock_ticking.wav",
+    "crowd_gasp": "assets/sfx/crowd/crowd_gasp.wav",
+    "crowd_murmur": "assets/sfx/atmospheric/crowd_murmur.wav",
+    "dark_whoosh_left": "assets/sfx/transitions/dark_whoosh_left.wav",
+    "dark_whoosh_right": "assets/sfx/transitions/dark_whoosh_right.wav",
+    "distant_thunder": "assets/sfx/nature/distant_thunder.wav",
+    "door_creaking": "assets/sfx/horror/door_creaking.wav",
+    "dramatic_boom": "assets/sfx/transitions/dramatic_boom.wav",
+    "film_reel": "assets/sfx/transitions/film_reel.wav",
+    "forest_ambience": "assets/sfx/ambient/forest_ambience.wav",
+    "heartbeat_fast": "assets/sfx/emotional/heartbeat_fast.wav",
+    "heartbeat_slow": "assets/sfx/emotional/heartbeat_slow.wav",
+    "heavy_thud": "assets/sfx/dramatic/heavy_thud.wav",
+    "horror_piano_chord": "assets/sfx/horror/horror_piano_chord.wav",
+    "low_brass_boom": "assets/sfx/dramatic/low_brass_boom.wav",
+    "marching_footsteps": "assets/sfx/historical/marching_footsteps.wav",
+    "ominous_drone": "assets/sfx/ambient/ominous_drone.wav",
+    "ominous_string_sting": "assets/sfx/horror/ominous_string_sting.wav",
+    "page_turn": "assets/sfx/transitions/page_turn.wav",
+    "radio_static": "assets/sfx/mechanical/radio_static.wav",
+    "static_burst": "assets/sfx/transitions/static_burst.wav",
+    "subtle_swoosh": "assets/sfx/transitions/subtle_swoosh.wav",
+    "typewriter": "assets/sfx/mechanical/typewriter.wav",
+    "water_dripping": "assets/sfx/nature/water_dripping.wav",
+    "wind_howling": "assets/sfx/ambient/wind_howling.wav"
+  },
+  "note": "Phase B.6 catalog; missing WAV files generated as placeholders for testing"
+}

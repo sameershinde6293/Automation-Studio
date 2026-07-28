@@ -1,0 +1,31 @@
+{
+  "shortcuts": {
+    "new_project": "Ctrl+N",
+    "open_project": "Ctrl+O",
+    "save_project": "Ctrl+S",
+    "start_render": "F9",
+    "quick_preview": "F5",
+    "cancel_render": "Escape",
+    "pause_render": "Ctrl+P",
+    "open_settings": "Ctrl+,",
+    "toggle_preview": "Space",
+    "import_files": "Ctrl+I",
+    "import_zip": "Ctrl+Shift+I",
+    "export_video": "Ctrl+E",
+    "copy_frame": "Ctrl+Shift+C",
+    "backup_project": "Ctrl+B",
+    "quit": "Ctrl+Q",
+    "undo": "Ctrl+Z",
+    "redo": "Ctrl+Y",
+    "select_all": "Ctrl+A",
+    "refresh_projects": "Ctrl+F5",
+    "pre_render_report": "Ctrl+Shift+R",
+    "copy_scene": "Ctrl+C",
+    "paste_scene": "Ctrl+V",
+    "delete_scene": "Delete",
+    "batch_render": "Ctrl+Shift+B",
+    "voice_store": "Ctrl+Shift+V",
+    "user_guide": "F1",
+    "toggle_fullscreen": "F11"
+  }
+}

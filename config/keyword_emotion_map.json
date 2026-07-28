@@ -1,0 +1,621 @@
+{
+  "version": "1.0",
+  "tts_emotions": [
+    "neutral",
+    "calm",
+    "serious",
+    "dramatic",
+    "mysterious",
+    "excited",
+    "sad",
+    "angry",
+    "fearful",
+    "whisper",
+    "tense",
+    "reverent",
+    "investigative",
+    "authoritative",
+    "conspiratorial",
+    "ominous",
+    "shocked",
+    "melancholic",
+    "urgent",
+    "nostalgic",
+    "cold",
+    "haunted",
+    "solemn",
+    "contemplative",
+    "incredulous",
+    "compassionate",
+    "detached",
+    "accusatory"
+  ],
+  "emotions": {
+    "neutral": [
+      "said",
+      "stated",
+      "noted",
+      "mentioned",
+      "according to",
+      "reported",
+      "described"
+    ],
+    "calm": [
+      "peacefully",
+      "quietly",
+      "gently",
+      "settled",
+      "steady",
+      "tranquil",
+      "composed"
+    ],
+    "serious": [
+      "however",
+      "nevertheless",
+      "in fact",
+      "importantly",
+      "critical fact",
+      "must note"
+    ],
+    "dramatic": [
+      "shocking",
+      "horrifying",
+      "devastating",
+      "revealed",
+      "exposed",
+      "stunned",
+      "terrifying",
+      "catastrophic",
+      "unimaginable",
+      "extreme",
+      "explosive",
+      "staggering",
+      "jaw-dropping",
+      "mind-blowing",
+      "bombshell",
+      "suddenly",
+      "forever",
+      "changed the world",
+      "wiped out",
+      "annihilated",
+      "obliterated",
+      "decimated"
+    ],
+    "mysterious": [
+      "unknown",
+      "unexplained",
+      "strange",
+      "mysterious",
+      "hidden",
+      "secret",
+      "puzzling",
+      "enigmatic",
+      "cryptic",
+      "inexplicable",
+      "bizarre",
+      "uncanny",
+      "eerie",
+      "peculiar",
+      "unsolved",
+      "anomaly",
+      "phenomenon",
+      "vanished",
+      "disappeared"
+    ],
+    "excited": [
+      "amazing",
+      "incredible",
+      "astonishing",
+      "thrilled",
+      "breakthrough",
+      "triumph",
+      "victory"
+    ],
+    "sad": [
+      "sorrow",
+      "tears",
+      "weeping",
+      "heartbroken",
+      "mournful",
+      "lament",
+      "tragic loss"
+    ],
+    "angry": [
+      "furious",
+      "rage",
+      "outraged",
+      "enraged",
+      "wrath",
+      "fury",
+      "indignant"
+    ],
+    "fearful": [
+      "afraid",
+      "terrified",
+      "panic",
+      "frightened",
+      "dreaded",
+      "horror",
+      "trembling"
+    ],
+    "whisper": [
+      "whispered",
+      "murmured",
+      "softly",
+      "under breath",
+      "hushed",
+      "quietly said"
+    ],
+    "tense": [
+      "tension",
+      "strained",
+      "on edge",
+      "nervous",
+      "pressure",
+      "tightening",
+      "standoff"
+    ],
+    "reverent": [
+      "sacred",
+      "holy",
+      "divine",
+      "blessed",
+      "worship",
+      "cathedral",
+      "prayer"
+    ],
+    "investigative": [
+      "evidence",
+      "discovered",
+      "uncovered",
+      "found",
+      "investigation",
+      "detective",
+      "clue",
+      "witness",
+      "testimony",
+      "forensic",
+      "autopsy",
+      "fingerprint",
+      "dna",
+      "suspect",
+      "alibi",
+      "motive",
+      "circumstantial"
+    ],
+    "authoritative": [
+      "historical records",
+      "confirmed",
+      "evidence",
+      "research",
+      "official",
+      "documented",
+      "scholars agree",
+      "established fact",
+      "authorities"
+    ],
+    "conspiratorial": [
+      "secret",
+      "classified",
+      "suppressed",
+      "covered up",
+      "hidden",
+      "conspiracy",
+      "cover-up",
+      "silenced",
+      "redacted",
+      "concealed",
+      "shadow government",
+      "deep state",
+      "orchestrated",
+      "staged",
+      "believed",
+      "claimed"
+    ],
+    "ominous": [
+      "darkness",
+      "shadow",
+      "lurking",
+      "spreading",
+      "inevitable",
+      "doomed",
+      "cursed",
+      "sinister",
+      "foreboding",
+      "dread",
+      "looming",
+      "impending",
+      "creeping",
+      "consuming",
+      "engulfing",
+      "dark",
+      "doom",
+      "unknown"
+    ],
+    "shocked": [
+      "nobody knew",
+      "impossible",
+      "unbelievable",
+      "never before",
+      "world was shocked",
+      "stunned the world",
+      "shockingly",
+      "astonishingly",
+      "but wait"
+    ],
+    "melancholic": [
+      "melancholy",
+      "wistful",
+      "bittersweet",
+      "faded",
+      "lost era",
+      "longing"
+    ],
+    "urgent": [
+      "warning",
+      "danger",
+      "immediately",
+      "critical",
+      "emergency",
+      "alarm",
+      "threat",
+      "imminent",
+      "rapidly",
+      "spreading",
+      "quickly",
+      "overnight",
+      "frantic",
+      "fleeing",
+      "evacuating",
+      "rushing"
+    ],
+    "nostalgic": [
+      "remember when",
+      "in those days",
+      "once upon",
+      "years ago",
+      "bygone",
+      "old times"
+    ],
+    "cold": [
+      "calculated",
+      "ruthless",
+      "indifferent",
+      "clinical",
+      "detached report",
+      "without emotion"
+    ],
+    "haunted": [
+      "ghost",
+      "abandoned",
+      "empty",
+      "silence",
+      "survivor",
+      "traumatized",
+      "nightmares",
+      "scarred",
+      "tormented",
+      "still haunts",
+      "cannot forget"
+    ],
+    "solemn": [
+      "died",
+      "killed",
+      "executed",
+      "tragedy",
+      "victims",
+      "murdered",
+      "massacred",
+      "perished",
+      "slaughtered",
+      "mourning",
+      "grief",
+      "burial",
+      "cemetery",
+      "memorial",
+      "fallen",
+      "sacrificed",
+      "death",
+      "loss"
+    ],
+    "contemplative": [
+      "emerged",
+      "changed",
+      "legacy",
+      "remembered",
+      "reflection",
+      "ponder",
+      "consider",
+      "in the end",
+      "looking back",
+      "what remains"
+    ],
+    "incredulous": [
+      "hard to believe",
+      "surely not",
+      "cannot be",
+      "doubted",
+      "skeptical",
+      "really?"
+    ],
+    "compassionate": [
+      "mercy",
+      "kindness",
+      "suffering of",
+      "helped",
+      "cared for",
+      "empathy",
+      "pity"
+    ],
+    "detached": [
+      "objectively",
+      "from a distance",
+      "clinical observation",
+      "without bias",
+      "as recorded"
+    ],
+    "accusatory": [
+      "accused",
+      "blamed",
+      "guilty",
+      "responsible for",
+      "charged with",
+      "pointed finger"
+    ],
+    "historical": [
+      "ancient",
+      "century",
+      "medieval",
+      "empire",
+      "kingdom",
+      "historical",
+      "ad",
+      "bc",
+      "bce",
+      "era",
+      "civilization",
+      "dynasty",
+      "renaissance",
+      "antiquity"
+    ]
+  },
+  "sfx_keywords": {
+    "dark_whoosh_left": [
+      "meanwhile",
+      "however",
+      "but",
+      "yet",
+      "despite"
+    ],
+    "dark_whoosh_right": [
+      "therefore",
+      "thus",
+      "consequently",
+      "as a result"
+    ],
+    "dramatic_boom": [
+      "shocking",
+      "revealed",
+      "exposed",
+      "discovered",
+      "bombshell",
+      "death"
+    ],
+    "church_bell": [
+      "died",
+      "death",
+      "killed",
+      "executed",
+      "memorial",
+      "funeral",
+      "bell"
+    ],
+    "clock_ticking": [
+      "investigation",
+      "timeline",
+      "countdown",
+      "tick",
+      "running out"
+    ],
+    "heartbeat_slow": [
+      "fear",
+      "terror",
+      "panic",
+      "tension",
+      "heart"
+    ],
+    "battlefield": [
+      "battle",
+      "war",
+      "fought",
+      "combat",
+      "troops",
+      "soldiers"
+    ],
+    "radio_static": [
+      "classified",
+      "intercepted",
+      "transmission",
+      "signal",
+      "frequency"
+    ],
+    "typewriter": [
+      "document",
+      "letter",
+      "evidence",
+      "written",
+      "report"
+    ],
+    "newspaper_slam": [
+      "headline",
+      "newspaper",
+      "published",
+      "article",
+      "press"
+    ],
+    "crowd_gasp": [
+      "shocking",
+      "unbelievable",
+      "nobody knew",
+      "impossible",
+      "crowd"
+    ],
+    "gavel_bang": [
+      "courtroom",
+      "trial",
+      "verdict",
+      "sentenced",
+      "judgment"
+    ],
+    "chain_rattling": [
+      "imprisoned",
+      "chained",
+      "captured",
+      "detained",
+      "prisoner"
+    ],
+    "door_creaking": [
+      "entered",
+      "opened",
+      "mysterious",
+      "haunted",
+      "abandoned"
+    ],
+    "ominous_drone": [
+      "darkness",
+      "spreading",
+      "doom",
+      "cursed"
+    ],
+    "crowd_murmur": [
+      "crowd",
+      "people murmured",
+      "whispers in the street"
+    ]
+  },
+  "animation_keywords": {
+    "dramatic_zoom_in": [
+      "shocking",
+      "revealed",
+      "exposed",
+      "climax",
+      "truth"
+    ],
+    "slow_zoom_in": [
+      "mysterious",
+      "unknown",
+      "hidden",
+      "secret",
+      "lurking",
+      "reveal"
+    ],
+    "slow_zoom_out": [
+      "memorial",
+      "peaceful",
+      "solemn",
+      "reflection",
+      "aftermath"
+    ],
+    "pan_left": [
+      "map",
+      "spread",
+      "traveled",
+      "journey",
+      "across"
+    ],
+    "pan_right": [
+      "timeline",
+      "history",
+      "progressed",
+      "advanced",
+      "moved"
+    ],
+    "vertical_scan": [
+      "document",
+      "letter",
+      "evidence",
+      "list",
+      "record"
+    ],
+    "static": [
+      "quote",
+      "statistic",
+      "percentage",
+      "number",
+      "fact"
+    ],
+    "ken_burns": [
+      "portrait",
+      "landscape",
+      "photograph",
+      "image of"
+    ]
+  },
+  "transition_keywords": {
+    "dip_to_black": [
+      "death",
+      "died",
+      "ended",
+      "darkness fell",
+      "final"
+    ],
+    "crossfade": [
+      "meanwhile",
+      "later",
+      "years later",
+      "across"
+    ],
+    "fade": [
+      "began",
+      "introduction",
+      "once",
+      "in the beginning"
+    ],
+    "dissolve": [
+      "memory",
+      "dream",
+      "vision",
+      "remembered"
+    ],
+    "hard_cut": [
+      "suddenly",
+      "instantly",
+      "without warning",
+      "then"
+    ]
+  },
+  "mood_to_transition": {
+    "dramatic": "dip_to_black",
+    "ominous": "dip_to_black",
+    "solemn": "dissolve",
+    "mysterious": "crossfade",
+    "urgent": "hard_cut",
+    "conspiratorial": "crossfade",
+    "haunted": "dissolve",
+    "shocked": "hard_cut",
+    "contemplative": "fade",
+    "neutral": "crossfade"
+  },
+  "mood_to_animation": {
+    "dramatic": "dramatic_zoom_in",
+    "mysterious": "slow_zoom_in",
+    "solemn": "slow_zoom_out",
+    "ominous": "slow_zoom_in",
+    "urgent": "pan_right",
+    "investigative": "vertical_scan",
+    "historical": "pan_left",
+    "contemplative": "slow_zoom_out",
+    "shocked": "dramatic_zoom_in",
+    "neutral": "ken_burns"
+  },
+  "ambient_genre_map": {
+    "dark_history": "ominous_drone",
+    "mystery": "wind_howling",
+    "true_crime": "clock_ticking",
+    "conspiracy": "radio_static",
+    "war_documentary": "battlefield",
+    "horror_documentary": "heartbeat_slow",
+    "investigation": "clock_ticking"
+  },
+  "note": "Merged File 11 + Module 14 + all 28 TTS emotion presets for Phase B.2"
+}

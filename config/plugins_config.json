@@ -1,0 +1,6 @@
+{
+  "plugins": [
+    {"name": "hello_autopilot", "enabled": true}
+  ],
+  "_comment": "D.8 plugin registry. Drop a <name>.py into the plugins/ folder and add {name, enabled} here. Each plugin file defines ONE BaseModule subclass with PLUGIN_API = 1 and run(context) -> dict. Plugins are standalone commands (python main.py plugin <name> --arg k=v), never pipeline stages. See docs/PLUGINS.md. Plugins are arbitrary Python running with your user rights — only install plugins you wrote or trust."
+}

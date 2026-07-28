@@ -1,0 +1,55 @@
+{
+  "autopilot_version": "1.0",
+  "project": {
+    "title": "The Dark History of the Black Death",
+    "channel": "Dark History Channel",
+    "genre": "dark_history",
+    "color_grade": "dark_moody",
+    "default_transition": "crossfade",
+    "default_animation": "ken_burns",
+    "music": "sample_music.wav",
+    "export_preset": "youtube_1080p"
+  },
+  "voice_profiles": [
+    {
+      "character": "NARRATOR",
+      "voice": "deep_male_us",
+      "engine": "piper",
+      "default_emotion": "dramatic",
+      "speed": 0.9,
+      "pitch": -2
+    },
+    {
+      "character": "HISTORIAN",
+      "voice": "british_male_01",
+      "engine": "piper",
+      "default_emotion": "authoritative",
+      "speed": 0.95,
+      "pitch": 0
+    }
+  ],
+  "scenes": [
+    {
+      "id": "scene_01",
+      "image": "dark_castle_night.jpg",
+      "dialogue": [
+        {
+          "character": "NARRATOR",
+          "emotion": "dramatic",
+          "text": "In the year 1347, twelve Genoese trading ships docked at the port of Messina in Sicily."
+        }
+      ]
+    },
+    {
+      "id": "scene_02",
+      "image": "ancient_map_europe.jpg",
+      "dialogue": [
+        {
+          "character": "HISTORIAN",
+          "emotion": "authoritative",
+          "text": "Historical records confirm that the disease spread with terrifying speed across the continent."
+        }
+      ]
+    }
+  ]
+}

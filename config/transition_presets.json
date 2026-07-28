@@ -1,0 +1,278 @@
+{
+  "presets": [
+    {
+      "id": "fade",
+      "name": "Fade",
+      "category": "basic",
+      "duration": 0.8,
+      "ffmpeg_transition": "fade",
+      "ffmpeg_filter": "xfade=transition=fade:duration=0.8:offset={offset}"
+    },
+    {
+      "id": "fade_black",
+      "name": "Fade Black",
+      "category": "basic",
+      "duration": 1.0,
+      "ffmpeg_transition": "fadeblack",
+      "ffmpeg_filter": "xfade=transition=fadeblack:duration=1.0:offset={offset}"
+    },
+    {
+      "id": "fade_white",
+      "name": "Fade White",
+      "category": "basic",
+      "duration": 0.8,
+      "ffmpeg_transition": "fadewhite",
+      "ffmpeg_filter": "xfade=transition=fadewhite:duration=0.8:offset={offset}"
+    },
+    {
+      "id": "crossfade",
+      "name": "Crossfade",
+      "category": "basic",
+      "duration": 1.0,
+      "ffmpeg_transition": "fade",
+      "ffmpeg_filter": "xfade=transition=fade:duration=1.0:offset={offset}"
+    },
+    {
+      "id": "dissolve",
+      "name": "Dissolve",
+      "category": "basic",
+      "duration": 0.8,
+      "ffmpeg_transition": "dissolve",
+      "ffmpeg_filter": "xfade=transition=dissolve:duration=0.8:offset={offset}"
+    },
+    {
+      "id": "hard_cut",
+      "name": "Hard Cut",
+      "category": "basic",
+      "duration": 0.0,
+      "ffmpeg_transition": null,
+      "ffmpeg_filter": "HARD_CUT"
+    },
+    {
+      "id": "slide_left",
+      "name": "Slide Left",
+      "category": "basic",
+      "duration": 1.0,
+      "ffmpeg_transition": "slideleft",
+      "ffmpeg_filter": "xfade=transition=slideleft:duration=1.0:offset={offset}"
+    },
+    {
+      "id": "slide_right",
+      "name": "Slide Right",
+      "category": "basic",
+      "duration": 1.0,
+      "ffmpeg_transition": "slideright",
+      "ffmpeg_filter": "xfade=transition=slideright:duration=1.0:offset={offset}"
+    },
+    {
+      "id": "fade_up",
+      "name": "Fade Up",
+      "category": "cinematic",
+      "duration": 1.0,
+      "ffmpeg_transition": "wipeup",
+      "ffmpeg_filter": "xfade=transition=wipeup:duration=1.0:offset={offset}"
+    },
+    {
+      "id": "fade_down",
+      "name": "Fade Down",
+      "category": "cinematic",
+      "duration": 1.0,
+      "ffmpeg_transition": "wipedown",
+      "ffmpeg_filter": "xfade=transition=wipedown:duration=1.0:offset={offset}"
+    },
+    {
+      "id": "iris_open",
+      "name": "Iris Open",
+      "category": "cinematic",
+      "duration": 1.0,
+      "ffmpeg_transition": "circlecrop",
+      "ffmpeg_filter": "xfade=transition=circlecrop:duration=1.0:offset={offset}"
+    },
+    {
+      "id": "iris_close",
+      "name": "Iris Close",
+      "category": "cinematic",
+      "duration": 1.0,
+      "ffmpeg_transition": "rectcrop",
+      "ffmpeg_filter": "xfade=transition=rectcrop:duration=1.0:offset={offset}"
+    },
+    {
+      "id": "circle_open",
+      "name": "Circle Open",
+      "category": "cinematic",
+      "duration": 1.0,
+      "ffmpeg_transition": "circleopen",
+      "ffmpeg_filter": "xfade=transition=circleopen:duration=1.0:offset={offset}"
+    },
+    {
+      "id": "circle_close",
+      "name": "Circle Close",
+      "category": "cinematic",
+      "duration": 1.0,
+      "ffmpeg_transition": "circleclose",
+      "ffmpeg_filter": "xfade=transition=circleclose:duration=1.0:offset={offset}"
+    },
+    {
+      "id": "pixelize",
+      "name": "Pixelize",
+      "category": "cinematic",
+      "duration": 1.0,
+      "ffmpeg_transition": "pixelize",
+      "ffmpeg_filter": "xfade=transition=pixelize:duration=1.0:offset={offset}"
+    },
+    {
+      "id": "wipe_diagonal",
+      "name": "Wipe Diagonal",
+      "category": "cinematic",
+      "duration": 1.0,
+      "ffmpeg_transition": "wipetl",
+      "ffmpeg_filter": "xfade=transition=wipetl:duration=1.0:offset={offset}"
+    },
+    {
+      "id": "dramatic_flash",
+      "name": "Dramatic Flash",
+      "category": "dramatic",
+      "duration": 0.25,
+      "ffmpeg_transition": "fadewhite",
+      "ffmpeg_filter": "xfade=transition=fadewhite:duration=0.25:offset={offset}"
+    },
+    {
+      "id": "whip_pan",
+      "name": "Whip Pan",
+      "category": "dramatic",
+      "duration": 0.35,
+      "ffmpeg_transition": "slideleft",
+      "ffmpeg_filter": "xfade=transition=slideleft:duration=0.35:offset={offset}"
+    },
+    {
+      "id": "zoom_in",
+      "name": "Zoom In",
+      "category": "dramatic",
+      "duration": 1.0,
+      "ffmpeg_transition": "smoothleft",
+      "ffmpeg_filter": "xfade=transition=smoothleft:duration=1.0:offset={offset}"
+    },
+    {
+      "id": "zoom_out",
+      "name": "Zoom Out",
+      "category": "dramatic",
+      "duration": 1.0,
+      "ffmpeg_transition": "smoothright",
+      "ffmpeg_filter": "xfade=transition=smoothright:duration=1.0:offset={offset}"
+    },
+    {
+      "id": "burn_out",
+      "name": "Burn Out",
+      "category": "dramatic",
+      "duration": 1.0,
+      "ffmpeg_transition": "fadeblack",
+      "ffmpeg_filter": "xfade=transition=fadeblack:duration=1.0:offset={offset}"
+    },
+    {
+      "id": "shake_transition",
+      "name": "Shake Transition",
+      "category": "dramatic",
+      "duration": 1.0,
+      "ffmpeg_transition": "distance",
+      "ffmpeg_filter": "xfade=transition=distance:duration=1.0:offset={offset}"
+    },
+    {
+      "id": "glitch",
+      "name": "Glitch",
+      "category": "dramatic",
+      "duration": 0.4,
+      "ffmpeg_transition": "pixelize",
+      "ffmpeg_filter": "xfade=transition=pixelize:duration=0.4:offset={offset}"
+    },
+    {
+      "id": "ink_bleed",
+      "name": "Ink Bleed",
+      "category": "artistic",
+      "duration": 1.0,
+      "ffmpeg_transition": "dissolve",
+      "ffmpeg_filter": "xfade=transition=dissolve:duration=1.0:offset={offset}"
+    },
+    {
+      "id": "film_burn",
+      "name": "Film Burn",
+      "category": "artistic",
+      "duration": 1.0,
+      "ffmpeg_transition": "fadewhite",
+      "ffmpeg_filter": "xfade=transition=fadewhite:duration=1.0:offset={offset}"
+    },
+    {
+      "id": "light_leak",
+      "name": "Light Leak",
+      "category": "artistic",
+      "duration": 1.0,
+      "ffmpeg_transition": "smoothright",
+      "ffmpeg_filter": "xfade=transition=smoothright:duration=1.0:offset={offset}"
+    },
+    {
+      "id": "page_turn",
+      "name": "Page Turn",
+      "category": "artistic",
+      "duration": 1.0,
+      "ffmpeg_transition": "wipeleft",
+      "ffmpeg_filter": "xfade=transition=wipeleft:duration=1.0:offset={offset}"
+    },
+    {
+      "id": "old_film",
+      "name": "Old Film",
+      "category": "artistic",
+      "duration": 1.0,
+      "ffmpeg_transition": "dissolve",
+      "ffmpeg_filter": "xfade=transition=dissolve:duration=1.0:offset={offset}"
+    },
+    {
+      "id": "tv_static",
+      "name": "Tv Static",
+      "category": "artistic",
+      "duration": 1.0,
+      "ffmpeg_transition": "pixelize",
+      "ffmpeg_filter": "xfade=transition=pixelize:duration=1.0:offset={offset}"
+    },
+    {
+      "id": "water_ripple",
+      "name": "Water Ripple",
+      "category": "artistic",
+      "duration": 1.0,
+      "ffmpeg_transition": "smoothright",
+      "ffmpeg_filter": "xfade=transition=smoothright:duration=1.0:offset={offset}"
+    },
+    {
+      "id": "matrix_dissolve",
+      "name": "Matrix Dissolve",
+      "category": "artistic",
+      "duration": 1.0,
+      "ffmpeg_transition": "pixelize",
+      "ffmpeg_filter": "xfade=transition=pixelize:duration=1.0:offset={offset}"
+    },
+    {
+      "id": "dip_to_black",
+      "name": "Dip To Black",
+      "category": "basic",
+      "duration": 1.0,
+      "ffmpeg_transition": "fadeblack",
+      "ffmpeg_filter": "xfade=transition=fadeblack:duration=1.0:offset={offset}"
+    },
+    {
+      "id": "dip_to_white",
+      "name": "Dip To White",
+      "category": "basic",
+      "duration": 1.0,
+      "ffmpeg_transition": "fadewhite",
+      "ffmpeg_filter": "xfade=transition=fadewhite:duration=1.0:offset={offset}"
+    },
+    {
+      "id": "cut",
+      "name": "Cut",
+      "category": "basic",
+      "duration": 0.0,
+      "ffmpeg_transition": null,
+      "ffmpeg_filter": "HARD_CUT"
+    }
+  ],
+  "default": "crossfade",
+  "count": 34
+}

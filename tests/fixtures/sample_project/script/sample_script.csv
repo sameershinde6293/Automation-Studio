@@ -1,0 +1,4 @@
+character,emotion,pause,image,transition_in,transition_out,animation,sfx,chapter,text
+NARRATOR,dramatic,medium,dark_castle_night.jpg,fade,crossfade,slow_zoom_in,ominous_drone,Introduction,"In the year 1347, twelve Genoese trading ships docked at the port of Messina in Sicily."
+HISTORIAN,authoritative,short,ancient_map_europe.jpg,crossfade,dissolve,pan_left,,The Spread,"Historical records confirm that the disease spread with terrifying speed across the continent."
+NARRATOR,haunted,dramatic,plague_victims_medieval.jpg,dip_to_black,crossfade,ken_burns,church_bell,,"The skin turned black. That is how it earned its name."

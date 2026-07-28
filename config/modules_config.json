@@ -1,0 +1,125 @@
+{
+  "modules": [
+    {
+      "name": "file_parser",
+      "enabled": true,
+      "priority": 1,
+      "required": true
+    },
+    {
+      "name": "tts_engine_manager",
+      "enabled": true,
+      "priority": 2,
+      "required": false
+    },
+    {
+      "name": "voice_profile_manager",
+      "enabled": true,
+      "priority": 3,
+      "required": false
+    },
+    {
+      "name": "image_processor",
+      "enabled": true,
+      "priority": 4,
+      "required": true
+    },
+    {
+      "name": "audio_processor",
+      "enabled": true,
+      "priority": 5,
+      "required": true
+    },
+    {
+      "name": "subtitle_engine",
+      "enabled": true,
+      "priority": 6,
+      "required": false
+    },
+    {
+      "name": "timeline_engine",
+      "enabled": true,
+      "priority": 7,
+      "required": true
+    },
+    {
+      "name": "transition_engine",
+      "enabled": true,
+      "priority": 8,
+      "required": false
+    },
+    {
+      "name": "animation_engine",
+      "enabled": true,
+      "priority": 9,
+      "required": false
+    },
+    {
+      "name": "color_grade_engine",
+      "enabled": true,
+      "priority": 10,
+      "required": false
+    },
+    {
+      "name": "sfx_engine",
+      "enabled": true,
+      "priority": 11,
+      "required": false
+    },
+    {
+      "name": "intro_outro_engine",
+      "enabled": true,
+      "priority": 12,
+      "required": false
+    },
+    {
+      "name": "export_engine",
+      "enabled": true,
+      "priority": 13,
+      "required": true
+    },
+    {
+      "name": "thumbnail_generator",
+      "enabled": true,
+      "priority": 14,
+      "required": false
+    },
+    {
+      "name": "batch_engine",
+      "enabled": true,
+      "priority": 15,
+      "required": false
+    },
+    {
+      "name": "quality_checker",
+      "enabled": true,
+      "priority": 16,
+      "required": false
+    },
+    {
+      "name": "channel_profile_manager",
+      "enabled": true,
+      "priority": 17,
+      "required": false
+    },
+    {
+      "name": "voice_store_manager",
+      "enabled": true,
+      "priority": 18,
+      "required": false
+    },
+    {
+      "name": "keyword_analyzer",
+      "enabled": true,
+      "priority": 19,
+      "required": false
+    },
+    {
+      "name": "drive_upload_engine",
+      "enabled": true,
+      "priority": 20,
+      "required": false
+    }
+  ],
+  "notes": "keyword_analyzer is Module 25 (optional). Phase A enables flag only; implementation is Phase B."
+}

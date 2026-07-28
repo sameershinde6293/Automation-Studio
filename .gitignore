@@ -1,57 +1,36 @@
-# Python
-backend/venv/
-backend/.venv/
-venv/
-.venv/
+# Python bytecode / cache (never tracked, any depth)
 __pycache__/
+**/__pycache__/
 *.py[cod]
-*.egg-info/
+*.pyc
+*.pyo
+*.pyd
 .pytest_cache/
+*.egg-info/
 .mypy_cache/
 .ruff_cache/
-.coverage
-.coverage.*
-coverage.xml
-htmlcov/
 
-# Databases (local runtime state)
-*.db
-*.db-journal
-*.db-wal
-*.db-shm
+# Virtualenvs
+venv/
+.venv/
 
-# Node / frontend
-node_modules/
-frontend/node_modules/
-frontend/dist/
-frontend/dist-electron/
-frontend/dist-electron-app/
-frontend/coverage/
-*.tsbuildinfo
+# Build outputs (D.5)
+build/Autopilot/
+dist/
 
-# Runtime data
-backend/data/
-backend/media_storage/
+# Runtime state (never commit user data)
+database/autopilot.db
+database/*.db-wal
+database/*.db-shm
 logs/
-*.log
+temp/
+cache/
+projects/
+subtitles/
 
-# Environment / secrets
-.env
-.env.*
-# Templates carry no secrets and must be committed — docker-compose.yml and
-# docs/DEPLOYMENT.md both instruct operators to copy them. The blanket
-# `.env.*` rule above is why .env.production.example was silently never
-# committed in M5 (finding M6-F4).
-!.env.example
-!.env.production.example
-!*.env.example
+# Engine binaries (provision per machine; never in git)
+engines/
 
-# OS / editor
-.DS_Store
-Thumbs.db
-.idea/
-.vscode/
-
-# M9 staging workspace: runtime artifacts from local validation runs.
-# Evidence that belongs in the repo is committed under docs/, not here.
-.m9-work/
+# Local test scratch
+.pytest_base/
+smoke_out/

@@ -1,0 +1,40 @@
+AutoPilot 3.2.18 — Any image format accepted, regardless of script extension
+==============================================================================
+
+Real fix for your exact situation: you have all 25 Moses images ready,
+just as .png instead of the .jpg the script names. Previously this
+failed as "image not found" even though the image genuinely existed —
+just under a different extension. Fixed.
+
+WHAT CHANGED
+--------------
+Image lookup now tries the exact filename first (no change for the
+normal case where extensions already match), and if that's not found,
+falls back to the same base filename with any supported format:
+jpg, jpeg, png, webp, bmp, tiff, tif — case-insensitive on the
+extension too. Your script can say "nile_night_basket.jpg" and it will
+correctly find "nile_night_basket.png" (or .webp, or .PNG, etc.) sitting
+right next to it.
+
+Fixed in BOTH places that look up scene images (the main lookup and a
+self-heal fallback used when a project folder has moved) — found and
+fixed both while making this change, for full consistency.
+
+TESTING PERFORMED
+-------------------
+- Real test of the exact scenario you hit: script requests .jpg,
+  actual file is .png — confirmed found correctly.
+- Same test with .webp.
+- Case-insensitive extension test (.PNG on disk).
+- Confirmed the exact-match fast path still works unchanged when
+  extensions already match (no behavior change for the common case).
+- Confirmed a genuinely missing image still correctly reports as
+  missing (no false positives).
+- Full end-to-end integration test: script referencing "scene1.jpg"
+  with only "scene1.png" present on disk — confirmed the scene
+  persists correctly with NO false "missing image" warning generated.
+- Full project compile sweep + AST corruption check: all clean.
+
+This is on top of everything from 3.1.1 through 3.2.17, including the
+early-validation timing fix from 3.2.17 — that fix now benefits
+automatically, since it uses the same correctly-resolved image paths.

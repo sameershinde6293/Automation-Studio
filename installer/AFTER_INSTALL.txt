@@ -1,0 +1,16 @@
+Autopilot is installed.
+
+ONE manual step remains: FFmpeg.
+Autopilot renders video with FFmpeg, which is not bundled
+(license + size). Copy your builds into:
+
+    <install folder>\_internal\engines\ffmpeg\ffmpeg.exe
+    <install folder>\_internal\engines\ffmpeg\ffprobe.exe
+
+(Optional) Piper voices go into _internal\engines\piper\.
+
+The Settings page in the app shows what it found. Everything else
+(script editing, project management, licensing, subtitles preview,
+Google Drive backup config) works without FFmpeg.
+
+Google Drive backup (optional): see _internal\docs\DRIVE_UPLOAD.md.

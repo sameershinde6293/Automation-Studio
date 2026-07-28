@@ -1,0 +1,189 @@
+//AUTOPILOT SCRIPT v1.0
+//TITLE: The Dark History of the Black Death
+//CHANNEL: Dark History Channel
+//GENRE: dark_history
+//COLOR_GRADE: dark_moody
+//TRANSITION: crossfade
+//ANIMATION: ken_burns
+//MUSIC: sample_music.wav
+//EXPORT: youtube_1080p
+
+//VOICE_SETUP_START
+NARRATOR: voice=deep_male_us, engine=piper, emotion=dramatic, speed=0.90, pitch=-2, reverb=subtle_room, echo=none, breathing=on, pause_sentence=0.6, pause_paragraph=1.8
+HISTORIAN: voice=british_male_01, engine=piper, emotion=authoritative, speed=0.95, pitch=0, reverb=none, echo=none, breathing=off, pause_sentence=0.5, pause_paragraph=1.5
+//VOICE_SETUP_END
+
+//SCENE_START: scene_01
+//IMAGE: dark_castle_night.jpg
+//DURATION: auto
+//TRANSITION_IN: fade
+//TRANSITION_OUT: crossfade
+//ANIMATION: slow_zoom_in
+//COLOR_GRADE: dark_moody
+//SFX: ominous_drone
+//CHAPTER: Introduction
+
+[NARRATOR|dramatic]
+In the year 1347, [PAUSE:SHORT] twelve Genoese trading ships docked at the port of Messina in Sicily.
+
+[PAUSE:MEDIUM]
+
+[NARRATOR|ominous]
+What the port authorities found when they approached the ships was terrifying.
+
+[PAUSE:LONG]
+
+[NARRATOR|dramatic]
+Most of the sailors were dead. [PAUSE:SHORT] And those still alive were gravely ill.
+
+//SCENE_END
+
+//SCENE_START: scene_02
+//IMAGE: ancient_map_europe.jpg
+//DURATION: auto
+//TRANSITION_IN: crossfade
+//TRANSITION_OUT: dissolve
+//ANIMATION: pan_left
+//COLOR_GRADE: dark_moody
+//SFX: none
+//CHAPTER: The Spread
+
+[HISTORIAN|authoritative]
+Historical records confirm that the disease spread with terrifying speed across the continent.
+
+[PAUSE:SHORT]
+
+[HISTORIAN|serious]
+Within months, it had reached the major cities of southern Europe.
+
+[PAUSE:MEDIUM]
+
+[HISTORIAN|cold]
+The death toll was unlike anything in recorded human history.
+
+//SCENE_END
+
+//SCENE_START: scene_03
+//IMAGE: plague_victims_medieval.jpg
+//DURATION: auto
+//TRANSITION_IN: dip_to_black
+//TRANSITION_OUT: crossfade
+//ANIMATION: ken_burns
+//COLOR_GRADE: dark_moody
+//SFX: church_bell
+
+[NARRATOR|solemn]
+The victims suffered terribly. [PAUSE:MEDIUM] Dark swellings appeared on the lymph nodes.
+
+[PAUSE:SHORT]
+
+[NARRATOR|haunted]
+The skin turned black. [PAUSE:DRAMATIC] That is how it earned its name.
+
+//SCENE_END
+
+//SCENE_START: scene_04
+//IMAGE: black_death_ships.jpg
+//DURATION: auto
+//TRANSITION_IN: crossfade
+//TRANSITION_OUT: crossfade
+//ANIMATION: slow_zoom_out
+//COLOR_GRADE: dark_moody
+
+[NARRATOR|conspiratorial]
+Many believed it was divine punishment. [PAUSE:MEDIUM] Others blamed outsiders.
+
+[PAUSE:SHORT]
+
+[HISTORIAN|serious]
+We now know it was caused by the bacterium Yersinia pestis.
+
+//SCENE_END
+
+//SCENE_START: scene_05
+//IMAGE: medieval_city_street.jpg
+//DURATION: auto
+//TRANSITION_IN: crossfade
+//TRANSITION_OUT: crossfade
+//ANIMATION: pan_right
+//COLOR_GRADE: dark_moody
+//SFX: crowd_murmur
+
+[NARRATOR|urgent]
+Cities became ghost towns overnight. [PAUSE:SHORT] The living could not bury the dead fast enough.
+
+//SCENE_END
+
+//SCENE_START: scene_06
+//IMAGE: church_interior_dark.jpg
+//DURATION: auto
+//TRANSITION_IN: dissolve
+//TRANSITION_OUT: crossfade
+//ANIMATION: slow_zoom_in
+//COLOR_GRADE: dark_moody
+//CHAPTER: The Response
+
+[HISTORIAN|authoritative]
+The Church was powerless against this invisible enemy.
+
+//SCENE_END
+
+//SCENE_START: scene_07
+//IMAGE: mass_grave_field.jpg
+//DURATION: auto
+//TRANSITION_IN: dip_to_black
+//TRANSITION_OUT: crossfade
+//ANIMATION: slow_zoom_out
+//COLOR_GRADE: dark_moody
+//SFX: church_bell
+
+[NARRATOR|solemn]
+Mass graves were dug outside city walls. [PAUSE:MEDIUM] Thousands buried with no ceremony.
+
+//SCENE_END
+
+//SCENE_START: scene_08
+//IMAGE: rat_infestation.jpg
+//DURATION: auto
+//TRANSITION_IN: crossfade
+//TRANSITION_OUT: crossfade
+//ANIMATION: ken_burns
+//COLOR_GRADE: dark_moody
+//CHAPTER: The Cause
+
+[HISTORIAN|investigative]
+It was carried by fleas living on black rats.
+
+//SCENE_END
+
+//SCENE_START: scene_09
+//IMAGE: doctor_plague_mask.jpg
+//DURATION: auto
+//TRANSITION_IN: crossfade
+//TRANSITION_OUT: crossfade
+//ANIMATION: slow_zoom_in
+//COLOR_GRADE: dark_moody
+
+[NARRATOR|dramatic]
+Plague doctors wore beaked masks filled with herbs and flowers.
+
+//SCENE_END
+
+//SCENE_START: scene_10
+//IMAGE: europe_aftermath.jpg
+//DURATION: auto
+//TRANSITION_IN: crossfade
+//TRANSITION_OUT: fade
+//ANIMATION: slow_zoom_out
+//COLOR_GRADE: dark_moody
+//CHAPTER: The Aftermath
+
+[NARRATOR|solemn]
+By the time the plague had run its course, between thirty and sixty percent of Europe's population was dead.
+
+[PAUSE:LONG]
+
+[NARRATOR|dramatic]
+Fifty million people. [PAUSE:DRAMATIC] Gone.
+
+//SCENE_END

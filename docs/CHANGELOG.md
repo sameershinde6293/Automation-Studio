@@ -1,5 +1,96 @@
 # Changelog
 
+## [1.1.0-rc3] - 2026-07-28 — Release Candidate 3
+
+### Milestone 9 — Production staging and real-world validation
+
+No new features. M9 deployed Creator OS to a production-shaped staging
+environment running **real PostgreSQL 16.2**, measured its behaviour, broke it
+on purpose, and fixed only what the evidence showed to be broken. Full
+evidence in `M9_VALIDATION_REPORT.md`.
+
+The PostgreSQL server itself was the unlock: earlier milestones concluded no
+PostgreSQL was available because Debian mirrors are unreachable, but PyPI is
+reachable and the `pgserver` wheel bundles a complete PostgreSQL 16.2
+distribution. That let the whole system — migrations, auth, execution, failure
+injection, backup and restore — run against the same major version the compose
+file pins, and it un-skipped 8 migration tests that had been skipped since M6.
+
+#### Fixed
+
+- **`backup.sh` reported success while producing no database backup
+  (M9-F3, CRITICAL).** Executed against the PostgreSQL staging deployment, the
+  script exited `0` after writing only `env.sanitized`, `manifest.txt` and an
+  empty `media.tar.gz`. Four causes: a missing `pg_dump` was a warning rather
+  than an error; a failing `pg_dump` was swallowed by `|| echo`; the connection
+  was rebuilt from `POSTGRES_USER`/`POSTGRES_DB`, discarding the host and port
+  from `DATABASE_URL`; and the media archive ignored `MEDIA_ROOT`. A cron job
+  would have reported success indefinitely, with the failure surfacing only
+  during a restore. Both scripts now fail loudly, read `DATABASE_URL` (with the
+  SQLAlchemy `+psycopg` suffix translated for libpq and the password redacted
+  in output), fall back to a bundled `pg_dump`/`psql`, verify the archive with
+  `gunzip -t` and a minimum-size check, record SHA-256 of every artefact, and
+  treat a backup with no database archive as a hard error. `restore.sh` now
+  uses `ON_ERROR_STOP=1`, so a partially applied dump is a failure instead of a
+  silent success. Verified by a full disaster-recovery drill: dump → drop →
+  restore → 20 tables, all rows, `alembic_version` preserved, application boots
+  against the restored database and authenticates with the restored credentials.
+
+- **Database pool saturation was invisible in `/metrics` (M9-F1, HIGH).** Pool
+  capacity is documented as the cap on request concurrency, and M6 measured it,
+  but no pool metric was ever exported. Pool exhaustion presents as requests
+  blocking on checkout, which from outside is indistinguishable from a slow
+  database. Added `creator_os_db_pool_size`, `_checked_out`, `_available`,
+  `_overflow`, `_capacity` and `_utilisation_ratio`, refreshed on scrape and
+  wrapped so a broken pool can never break a scrape. Verified live: 40
+  concurrent clients drove `checked_out` to 40 and the ratio to 0.5.
+
+- **Account lockout produced no audit event (M9-F2, MEDIUM).** After 25 rapid
+  bad logins the account locked correctly, but the audit table contained only
+  `auth.login.failed` rows — the lockout existed solely as a log line, so an
+  audit-trail consumer or SIEM export could not see that an account had been
+  locked. `auth.account.locked` is now emitted after the lockout commits, with
+  username, failure count, `locked_until` and the configured window. Auditing
+  stays best-effort: a broken audit sink must not deny logins.
+
+- **Shipped version disagreed with published version (M9-F4).** README and
+  `PROJECT_STATUS.md` advertised `1.1.0-rc2` while the backend, frontend and
+  live `/health/ready` all reported `1.1.0-rc1`. Everything is now
+  `1.1.0-rc3`, and a regression test requires backend, settings,
+  `package.json`, `package-lock.json`, README, `PROJECT_STATUS.md` and the
+  running health payload to agree.
+
+- **README test counts were stale (M9-F5).** Quoted 1529 passed / 8 skipped;
+  the suite produced 1527 / 10. Now measured and linked to the report that
+  produced the numbers.
+
+#### Validated (executed, not asserted)
+
+- **Staging on real PostgreSQL 16.2** — production settings, auth on, docs off,
+  JSON logs, migrations applied, bootstrap admin created then cleared.
+- **Long run** — 48 minutes continuous under load: 408 workflow executions,
+  0 failures, 0 non-200 probes, RSS 91→100 MB, CPU 1.0% of one core, FDs and
+  threads bounded, no `idle in transaction` leak.
+- **Performance** — `/health` p95 2.9 ms; workflow execution p95 68 ms;
+  100 concurrent readers with 0 errors; startup 1.1 s; graceful shutdown 188 ms
+  (5.1 s with five queued executions, leaving nothing orphaned). No
+  optimisation was performed: nothing measured was outside budget.
+- **Failure injection** — database stopped under a live backend (ready 503,
+  live 200, `/metrics` 200, recovery in 1 s with no restart), unreachable
+  database at boot, SIGKILL, SIGTERM with work in flight, partial workflow
+  failure, network interruption, and a genuinely full filesystem (clean HTTP
+  500, no crash). Six of seven unsafe configurations refused to boot.
+- **Security** — forged/expired/tampered JWTs and `alg=none` all rejected,
+  host-header injection blocked, SQL injection parameterised, 413 on oversized
+  bodies, rate limiting with `Retry-After`, SSRF guard blocking loopback and
+  private ranges.
+
+#### Still not validated
+
+Docker runtime remains **unexecuted** — no container runtime and every registry
+unreachable. The long run was 48 minutes, not 24 hours. Multi-replica operation
+is untested. See `M9_VALIDATION_REPORT.md` §11.
+
 ## [1.1.0-rc1] - 2026-07-27 — Release Candidate 1
 
 ### Milestone 7 — Production deployment and release candidate

@@ -1,5 +1,67 @@
 # Release Notes
 
+## v1.1.0-rc3 — Release Candidate 3
+
+**2026-07-28**
+
+The first build validated against a **real PostgreSQL server**. M9 added no
+features: it deployed Creator OS to a production-shaped staging environment,
+measured it, attacked it, and fixed the four defects that came out.
+
+Earlier milestones reported that no PostgreSQL was available in this
+environment. That was true for `apt` but incomplete — PyPI is reachable, and
+the `pgserver` wheel ships a complete PostgreSQL 16.2 distribution. Running
+against the same major version the compose file pins turned eight
+long-skipped migration tests into passing tests and exposed defects that
+SQLite could not.
+
+### The one that matters
+
+**`scripts/backup.sh` reported success while backing up nothing.** Run against
+the PostgreSQL staging deployment it exited `0` having written no database
+dump at all — `pg_dump` was absent, the branch printed a warning, and the
+script carried on. A nightly cron would have reported success indefinitely and
+the truth would have surfaced during a restore.
+
+`restore.sh` had the matching defect: it piped into `psql "${DATABASE_URL:-}"`,
+which is empty unless that variable happens to be exported, and ran without
+`ON_ERROR_STOP`, so a half-applied dump still exited `0`.
+
+Both now fail loudly, target the database named in `DATABASE_URL`, verify the
+archive, checksum every artefact and honour `MEDIA_ROOT`. Proven by a full
+disaster-recovery drill that ends with the application serving traffic from
+the restored database.
+
+### Also fixed
+
+- **Database pool metrics** (`creator_os_db_pool_*`) — pool capacity was
+  documented as the concurrency limit and measured in M6, but never exported,
+  so saturation was invisible at run time.
+- **`auth.account.locked` audit event** — lockouts were logged but never
+  written to the audit trail.
+- **Version consistency** — README advertised rc2, the code shipped rc1.
+  Everything is rc3, enforced by a test.
+
+### Measured
+
+| | |
+| --- | --- |
+| Long run | 48 min, 408 executions, **0 failures**, RSS 91→100 MB, CPU 1.0% of a core |
+| API | `/health` p95 2.9 ms · `/api/workflows/` p95 8.4 ms · login 210 ms (PBKDF2, by design) |
+| Workflow | p50 57 ms, p95 68 ms; 20 concurrent runs all completed |
+| Startup / shutdown | 1.1 s / 188 ms |
+| Failure recovery | DB loss → 503 ready, 200 live, recovers in **1 s** without a restart |
+| Tests | 1562 (SQLite) · 1570 (PostgreSQL) · 179 frontend · 4/4 examples |
+
+### Known limitations
+
+Docker has still never been executed here — no runtime, no reachable registry.
+48 minutes is not a 24-hour soak, and multi-replica operation is untested.
+Readiness is **94%**, deliberately not higher. See
+`M9_VALIDATION_REPORT.md` §9 and §11.
+
+---
+
 ## v1.1.0-rc1 — Release Candidate 1
 
 **2026-07-27**

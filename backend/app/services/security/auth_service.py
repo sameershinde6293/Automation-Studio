@@ -189,10 +189,12 @@ class AuthService:
 
     def _register_failure(self, db: Session, user: User) -> None:
         user.failed_login_count = (user.failed_login_count or 0) + 1
+        locked_now = False
         if user.failed_login_count >= settings.AUTH_MAX_FAILED_LOGINS:
             user.locked_until = utcnow() + timedelta(
                 seconds=settings.AUTH_LOCKOUT_SECONDS
             )
+            locked_now = True
             logger.warning(
                 "Locked account %s after %s failed logins",
                 user.username,
@@ -201,6 +203,31 @@ class AuthService:
             )
         db.add(user)
         db.commit()
+
+        # M9-F2: a lockout is the moment a brute-force attempt becomes visible,
+        # but until M9 it existed only as a log line. Anything reading the
+        # audit trail (the /api/enterprise audit views, or an export to a SIEM)
+        # saw a run of auth.login.failed and no record that the account was
+        # actually locked. Emitted after the commit so the audit row is only
+        # written for a lockout that really persisted.
+        if locked_now:
+            try:
+                from app.services.enterprise.auth import enterprise_auth
+
+                enterprise_auth.log_audit_event(
+                    "auth.account.locked",
+                    user.id,
+                    {
+                        "username": user.username,
+                        "failed_login_count": user.failed_login_count,
+                        "locked_until": user.locked_until.isoformat()
+                        if user.locked_until
+                        else None,
+                        "lockout_seconds": settings.AUTH_LOCKOUT_SECONDS,
+                    },
+                )
+            except Exception:  # pragma: no cover - auditing must not block auth
+                logger.exception("Failed to record the account lockout audit event.")
 
     def authenticate(self, db: Session, username: str, password: str) -> User:
         """Verify credentials and return the user, or raise ``UnauthorizedError``."""

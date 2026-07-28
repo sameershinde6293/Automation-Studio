@@ -286,6 +286,43 @@ Exposed series include `creator_os_http_requests_total`,
 `creator_os_http_request_duration_seconds`, `creator_os_executions_total`,
 `creator_os_execution_queue_depth` and `creator_os_auth_attempts_total`.
 
+### Database pool saturation (added in M9)
+
+Pool capacity is what caps request concurrency: every in-flight request holds
+a connection for its whole lifetime. When the pool is exhausted, requests block
+on checkout for `DB_POOL_TIMEOUT_SECONDS` and the service looks *slow* rather
+than *busy* — externally indistinguishable from a slow database. These gauges
+tell the two apart:
+
+| Series | Meaning |
+| --- | --- |
+| `creator_os_db_pool_capacity` | `DB_POOL_SIZE + DB_MAX_OVERFLOW` |
+| `creator_os_db_pool_checked_out` | Connections held by in-flight work right now |
+| `creator_os_db_pool_available` | Idle connections ready for immediate use |
+| `creator_os_db_pool_size` | Connections the pool currently holds |
+| `creator_os_db_pool_overflow` | Connections beyond `pool_size` (negative = unused headroom) |
+| `creator_os_db_pool_utilisation_ratio` | `checked_out / capacity`; `1.0` is saturated |
+
+Suggested alerts:
+
+```yaml
+# Sustained saturation: requests are about to start queueing on checkout.
+- alert: CreatorOSDatabasePoolSaturated
+  expr: creator_os_db_pool_utilisation_ratio > 0.85
+  for: 5m
+
+# Hard saturation: raise capacity, add PgBouncer, or reduce WEB_CONCURRENCY.
+- alert: CreatorOSDatabasePoolExhausted
+  expr: creator_os_db_pool_utilisation_ratio >= 1
+  for: 1m
+```
+
+Keep `(DB_POOL_SIZE + DB_MAX_OVERFLOW) × replicas` below PostgreSQL
+`max_connections` (default 100). Measured in M9 at capacity 80: 100 concurrent
+readers peaked at 40 checked-out connections (ratio 0.5) with zero errors.
+
+SQLite uses a non-queue pool and emits nothing here.
+
 Logs are JSON on stdout (`LOG_FORMAT=json`) with `request_id` and
 `correlation_id` on every line. Collect them with your existing agent; the
 application does not ship logs itself.

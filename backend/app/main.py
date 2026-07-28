@@ -355,5 +355,37 @@ def _refresh_runtime_gauges() -> None:
     except Exception:  # pragma: no cover - metrics must never break a scrape
         logger.debug("Could not refresh runtime gauges", exc_info=True)
 
+    # M9-F1: expose database pool saturation. Pool exhaustion presents as
+    # requests hanging on checkout for DB_POOL_TIMEOUT_SECONDS, which looks
+    # identical to a slow database from the outside; these gauges tell the two
+    # apart. SQLite uses a non-queue pool and simply reports nothing.
+    try:
+        from app.infrastructure.database.database import engine
+        from app.infrastructure.observability.metrics import (
+            db_pool_available,
+            db_pool_capacity,
+            db_pool_checked_out,
+            db_pool_overflow,
+            db_pool_size,
+            db_pool_utilisation_ratio,
+        )
+
+        pool = engine.pool
+        if hasattr(pool, "checkedout"):
+            checked_out = pool.checkedout()
+            db_pool_checked_out.set(checked_out)
+            if hasattr(pool, "size"):
+                db_pool_size.set(pool.size())
+            if hasattr(pool, "checkedin"):
+                db_pool_available.set(pool.checkedin())
+            if hasattr(pool, "overflow"):
+                db_pool_overflow.set(pool.overflow())
+            capacity = int(settings.DB_POOL_SIZE) + int(settings.DB_MAX_OVERFLOW)
+            if capacity > 0:
+                db_pool_capacity.set(capacity)
+                db_pool_utilisation_ratio.set(round(checked_out / capacity, 4))
+    except Exception:  # pragma: no cover - metrics must never break a scrape
+        logger.debug("Could not refresh database pool gauges", exc_info=True)
+
 
 app = create_app()

@@ -337,6 +337,37 @@ rate_limit_rejections_total = registry.counter(
     "Requests rejected by the rate limiter.",
 )
 
+# M9-F1: connection-pool capacity is what caps request concurrency (every
+# in-flight request holds a connection for its whole lifetime, see
+# app/core/startup.py and docs/DEPLOYMENT.md "Scalability"). Until M9 that
+# limit was documented and validated at deploy time but invisible at run time:
+# an operator watching /metrics could not see the pool approaching saturation,
+# which is the single most likely cause of a stall under load.
+db_pool_size = registry.gauge(
+    "creator_os_db_pool_size",
+    "Connections currently held by the SQLAlchemy pool.",
+)
+db_pool_checked_out = registry.gauge(
+    "creator_os_db_pool_checked_out",
+    "Pooled connections currently checked out by in-flight work.",
+)
+db_pool_available = registry.gauge(
+    "creator_os_db_pool_available",
+    "Pooled connections idle and immediately available.",
+)
+db_pool_overflow = registry.gauge(
+    "creator_os_db_pool_overflow",
+    "Connections created beyond pool_size (negative means unused headroom).",
+)
+db_pool_capacity = registry.gauge(
+    "creator_os_db_pool_capacity",
+    "Maximum concurrent connections: DB_POOL_SIZE + DB_MAX_OVERFLOW.",
+)
+db_pool_utilisation_ratio = registry.gauge(
+    "creator_os_db_pool_utilisation_ratio",
+    "Checked-out connections divided by total capacity (1.0 = saturated).",
+)
+
 app_info = registry.gauge(
     "creator_os_app_info",
     "Build and environment info; the value is always 1.",

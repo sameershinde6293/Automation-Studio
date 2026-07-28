@@ -18,6 +18,7 @@ from app.services.workflow.executors import (
     coerce_number,
     render_template,
     render_value,
+    request_following_validated_redirects,
     validate_outbound_url,
 )
 from app.services.workflow.runtime import (
@@ -41,8 +42,15 @@ async def _perform_request(
     max_bytes: int,
     follow_redirects: bool = True,
 ) -> Dict[str, Any]:
-    """Shared HTTP call with size caps and typed error classification."""
-    request_kwargs: Dict[str, Any] = {"url": url, "headers": headers}
+    """Shared HTTP call with size caps and typed error classification.
+
+    Redirects, when enabled, are followed **manually** via
+    :func:`request_following_validated_redirects` so that every hop is passed
+    back through ``validate_outbound_url``. Delegating to httpx's
+    ``follow_redirects`` would validate only the first URL, letting a public
+    host bounce the request to ``169.254.169.254`` or another internal address.
+    """
+    request_kwargs: Dict[str, Any] = {"headers": headers}
     if method in {"POST", "PUT", "PATCH", "DELETE"} and body is not None:
         if isinstance(body, (dict, list)):
             request_kwargs["json"] = body
@@ -52,11 +60,15 @@ async def _perform_request(
     try:
         async with httpx.AsyncClient(
             timeout=timeout,
-            follow_redirects=follow_redirects,
-            max_redirects=5,
+            follow_redirects=False,
             limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
         ) as client:
-            response = await client.request(method, **request_kwargs)
+            if follow_redirects:
+                response = await request_following_validated_redirects(
+                    client, method, url, max_redirects=5, **request_kwargs
+                )
+            else:
+                response = await client.request(method, url=url, **request_kwargs)
             content = response.content or b""
             truncated = len(content) > max_bytes
             if truncated:

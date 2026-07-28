@@ -1,20 +1,25 @@
 # Test Coverage
 
-## Current totals (2026-07-28, M10 — v1.1.0)
+## Current totals (2026-07-28, post-v1.1.0 independent audit)
 
-All figures below were measured in the M10 certification run on this
-environment. Nothing is carried forward from an earlier milestone.
+All figures below were re-measured in the post-v1.1.0 independent audit run on
+this environment; carried-forward figures are marked as such and were NOT
+re-executed here.
+
+The audit added **15 regression tests** (`backend/tests/audit/`), one per
+verified defect it fixed; each was confirmed to fail against the pre-fix v1.1.0
+tree. That is the whole of the 1576 → 1591 change.
 
 | Suite | Tests | Status |
 | --- | --- | --- |
-| Backend — SQLite (default) | **1576 passed**, 10 skipped, 0 failed | ✅ |
-| Backend — PostgreSQL 16.2 | **1584 passed**, 2 skipped, 0 failed | ✅ |
-| Backend line coverage | **89%** (7782 statements, 866 uncovered) | ✅ measured, not estimated |
+| Backend — SQLite (default) | **1591 passed**, 10 skipped, 0 failed | ✅ |
+| Backend — PostgreSQL 16.2 | 1584 passed, 2 skipped, 0 failed (M10 figure; **not re-run in this audit** — no PostgreSQL server available in this environment) | ⚠️ carried forward |
+| Backend line coverage | 89% (7782 statements, 866 uncovered) — M10 figure, not re-measured in this audit | ⚠️ carried forward |
 | Frontend (Vitest, 13 files) | **179 passed** | ✅ |
 | Frontend typecheck (`tsc --noEmit`) | clean | ✅ |
 | Frontend production build | clean, 343.85 kB (109.08 kB gzip), 1735 modules | ✅ |
-| Example workflows executed end to end | **4/4** against an authenticated production backend | ✅ |
-| E2E smoke (`e2e_execution_smoke.py`, `e2e_control_smoke.py`) | both pass | ✅ |
+| Example workflows executed end to end | 4/4 (M10 figure; **not re-executed in this audit**) | ⚠️ carried forward |
+| E2E smoke (`e2e_execution_smoke.py`, `e2e_control_smoke.py`) | both pass (M10 figure; **not re-executed in this audit**) | ⚠️ carried forward |
 
 The 10 skips under SQLite are the PostgreSQL-gated tests, which key off
 `TEST_POSTGRES_URL`. With a real PostgreSQL 16.2 server (supplied here by the
@@ -38,7 +43,7 @@ were confirmed to detect the defects they describe.
 ```bash
 ./scripts/ci-local.sh                              # all of the below
 
-cd backend && ./.venv/bin/python -m pytest -q      # 1576 passed, 10 skipped
+cd backend && ./.venv/bin/python -m pytest -q      # 1591 passed, 10 skipped
 cd frontend && npm test && npm run typecheck       # 179
 python scripts/verify_examples.py                  # 4/4 examples
 

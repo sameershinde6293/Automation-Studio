@@ -157,6 +157,63 @@ def _is_blocked_ip(ip: ipaddress._BaseAddress) -> bool:
     )
 
 
+#: HTTP status codes that carry a ``Location`` redirect.
+REDIRECT_STATUS_CODES = frozenset({301, 302, 303, 307, 308})
+
+
+async def request_following_validated_redirects(
+    client: Any,
+    method: str,
+    url: str,
+    *,
+    max_redirects: int = 5,
+    **request_kwargs: Any,
+) -> Any:
+    """Perform an HTTP request, re-validating every redirect hop for SSRF.
+
+    ``httpx``'s own ``follow_redirects=True`` is unsafe here: only the *initial*
+    URL passes through :func:`validate_outbound_url`, so a public host that
+    answers ``302 Location: http://169.254.169.254/...`` walks the request
+    straight past the guard. Redirects are therefore followed manually, and
+    each hop is validated exactly like the first.
+
+    The caller's client must be constructed with ``follow_redirects=False``.
+    """
+    current_method = method
+    current_url = url
+    kwargs = dict(request_kwargs)
+
+    for _ in range(max_redirects + 1):
+        response = await client.request(current_method, url=current_url, **kwargs)
+        if response.status_code not in REDIRECT_STATUS_CODES:
+            return response
+
+        location = response.headers.get("location")
+        if not location:
+            return response
+
+        # Relative targets resolve against the current URL, matching httpx.
+        next_url = str(httpx.URL(str(response.url)).join(location))
+        # The whole point of this function: the hop is validated too.
+        validate_outbound_url(next_url)
+
+        # 303 always becomes GET; 301/302 do so for anything but HEAD, which is
+        # what every mainstream client does in practice.
+        if response.status_code == 303 or (
+            response.status_code in (301, 302) and current_method not in ("GET", "HEAD")
+        ):
+            current_method = "GET"
+            kwargs.pop("json", None)
+            kwargs.pop("content", None)
+            kwargs.pop("data", None)
+        current_url = next_url
+
+    raise SecurityError(
+        f"HTTP request exceeded {max_redirects} redirects.",
+        details={"url": url},
+    )
+
+
 def validate_outbound_url(url: str, *, allow_private: Optional[bool] = None,
                           allowed_hosts: Optional[List[str]] = None) -> str:
     """Validate a URL for outbound requests, raising on SSRF risk."""
@@ -473,18 +530,21 @@ class HttpRequestExecutor(BaseNodeExecutor):
         timeout = max(1.0, min(timeout, 300.0))
         max_bytes = settings.HTTP_EXECUTOR_MAX_RESPONSE_BYTES
 
-        request_kwargs: Dict[str, Any] = {"url": url, "headers": headers}
+        request_kwargs: Dict[str, Any] = {"headers": headers}
         if method in {"POST", "PUT", "PATCH"} and config.get("body") is not None:
             request_kwargs["json"] = render_value(config.get("body"), context)
 
         try:
             async with httpx.AsyncClient(
                 timeout=timeout,
-                follow_redirects=True,
-                max_redirects=5,
+                # Redirects are followed manually so each hop is SSRF-validated;
+                # httpx's own follow_redirects would bypass the guard entirely.
+                follow_redirects=False,
                 limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
             ) as client:
-                response = await client.request(method, **request_kwargs)
+                response = await request_following_validated_redirects(
+                    client, method, url, max_redirects=5, **request_kwargs
+                )
                 content = response.content or b""
                 truncated = len(content) > max_bytes
                 if truncated:

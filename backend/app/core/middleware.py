@@ -317,7 +317,9 @@ class BodySizeLimitMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 
-def client_identity(request: Request, *, trust_proxy: bool = False) -> str:
+def client_identity(
+    request: Request, *, trust_proxy: bool = False, prefer_address: bool = False
+) -> str:
     """Best-available identifier for the caller.
 
     Prefers the authenticated credential over the network address, because an
@@ -326,7 +328,16 @@ def client_identity(request: Request, *, trust_proxy: bool = False) -> str:
     explicitly says it sits behind a trusted proxy — honouring that header
     unconditionally would let any client spoof its own identity and evade the
     limiter entirely.
+
+    ``prefer_address`` inverts the precedence and keys on the network address
+    instead. This is required on **credential endpoints**: there the supplied
+    credential is exactly what the attacker is guessing, so keying on it gives
+    every guess its own fresh bucket and the login limiter never fires. See
+    :class:`RateLimitMiddleware`.
     """
+    if prefer_address:
+        return _address_identity(request, trust_proxy=trust_proxy)
+
     api_key = request.headers.get("X-API-Key")
     if api_key:
         return f"key:{hashlib.sha256(api_key.encode()).hexdigest()[:16]}"
@@ -335,6 +346,11 @@ def client_identity(request: Request, *, trust_proxy: bool = False) -> str:
     if authorization:
         return f"tok:{hashlib.sha256(authorization.encode()).hexdigest()[:16]}"
 
+    return _address_identity(request, trust_proxy=trust_proxy)
+
+
+def _address_identity(request: Request, *, trust_proxy: bool = False) -> str:
+    """Network-address identity, honouring proxy headers only when trusted."""
     if trust_proxy:
         forwarded = request.headers.get("X-Forwarded-For", "")
         if forwarded:
@@ -388,14 +404,19 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.auth_window_seconds = auth_window_seconds
         self._hits: Dict[str, Deque[float]] = {}
 
-    def _client_key(self, request: Request) -> str:
-        return client_identity(request, trust_proxy=self.trust_proxy)
+    def _client_key(self, request: Request, *, prefer_address: bool = False) -> str:
+        return client_identity(
+            request, trust_proxy=self.trust_proxy, prefer_address=prefer_address
+        )
 
     def _budget(self, path: str) -> tuple:
         """Return ``(max_requests, window_seconds, bucket_suffix)`` for a path."""
         if path.startswith(self.auth_paths):
             return self.auth_max_requests, self.auth_window_seconds, "|auth"
         return self.max_requests, self.window_seconds, ""
+
+    def _is_auth_path(self, path: str) -> bool:
+        return path.startswith(self.auth_paths)
 
     async def dispatch(self, request: Request, call_next) -> Response:
         # The canonical path is what the budget is selected against, so the
@@ -406,7 +427,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         max_requests, window_seconds, suffix = self._budget(path)
-        key = f"{self._client_key(request)}{suffix}"
+        # Credential endpoints must be bucketed by network address, never by
+        # the presented credential. Keying on the credential lets an attacker
+        # mint a fresh bucket per attempt simply by varying an (otherwise
+        # ignored) Authorization/X-API-Key header, which bypasses the login
+        # limiter completely.
+        key = f"{self._client_key(request, prefer_address=self._is_auth_path(path))}{suffix}"
         now = time.monotonic()
         bucket = self._hits.setdefault(key, deque())
         cutoff = now - window_seconds

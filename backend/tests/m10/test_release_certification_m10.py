@@ -66,10 +66,21 @@ class TestDocumentationVersionStamps:
         assert match.group(1) == backend_version()
 
     def test_changelog_leads_with_the_shipped_version(self) -> None:
+        """The first *released* section must match the shipped version.
+
+        A leading ``## [Unreleased]`` section is the keep-a-changelog
+        convention for work merged but not yet tagged, and is skipped here:
+        the guard is that the newest *version* heading matches what the
+        backend reports, which it still enforces.
+        """
         text = (DOCS / "CHANGELOG.md").read_text(encoding="utf-8")
-        match = re.search(r"^## \[([^\]]+)\]", text, re.MULTILINE)
-        assert match, "CHANGELOG.md has no '## [X.Y.Z]' section"
-        assert match.group(1) == backend_version()
+        versions = [
+            v
+            for v in re.findall(r"^## \[([^\]]+)\]", text, re.MULTILINE)
+            if v.lower() != "unreleased"
+        ]
+        assert versions, "CHANGELOG.md has no '## [X.Y.Z]' section"
+        assert versions[0] == backend_version()
 
     def test_changelog_versions_are_unique(self) -> None:
         """A duplicated heading makes the history ambiguous to read."""

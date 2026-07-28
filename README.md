@@ -116,13 +116,13 @@ forward from an earlier milestone:
 
 | | |
 | --- | --- |
-| Backend tests | **1576 passed / 10 skipped** (SQLite) · **1584 passed / 2 skipped** (PostgreSQL 16.2) · 0 failed |
-| PostgreSQL migration suite | **8/8 executed** against real PostgreSQL 16.2 |
+| Backend tests | **1591 passed / 10 skipped** (SQLite, re-run in the post-v1.1.0 audit) · 1584 passed / 2 skipped (PostgreSQL 16.2, M10 figure — not re-run) · 0 failed |
+| PostgreSQL migration suite | 8/8 executed against real PostgreSQL 16.2 (M10 figure — not re-run in the post-v1.1.0 audit) |
 | Frontend tests | **179 passed** (13 files) |
 | Typecheck / production build | clean · 343.85 kB (109.08 kB gzip), 1735 modules |
 | Migrations | upgrade → downgrade to base → re-upgrade on PostgreSQL: **0 orphaned enum types**, 19 tables restored |
-| Examples | **4/4 executed** against an authenticated production backend on PostgreSQL |
-| Performance | `/health` p50 2.7 ms / p95 3.4 ms · startup **41 ms** · graceful SIGTERM shutdown clean |
+| Examples | 4/4 executed against an authenticated production backend on PostgreSQL (M10 figure — not re-run) |
+| Performance | `/health` p50 2.7 ms / p95 3.4 ms · startup 41 ms · graceful SIGTERM shutdown clean (M10 figures — not re-measured) |
 | Failure testing | DB loss → **503 ready / 200 live**, recovers in **~1 s without restart** · SIGKILL leaves **no orphaned executions** |
 | Backup / restore | **Disaster-recovery drill executed**: 16 KB `pg_dump` → `DROP SCHEMA CASCADE` → restore → 20 tables, all rows and migration state intact, app authenticates and serves 200 |
 | Security posture | `/docs` 404 · unauthenticated API 401 · bad Host 400 · secrets appear **0 times** in logs |
@@ -218,7 +218,7 @@ backend/           FastAPI + SQLAlchemy 2 + Alembic
   app/domain/      ORM models and repositories
   app/services/    Workflow engine, AI orchestration, media, security, plugins
   app/infrastructure/  Config, database, logging, metrics, scheduler
-  tests/           1576 tests (1584 with PostgreSQL enabled)
+  tests/           1591 tests (1584 measured with PostgreSQL enabled at M10)
 
 examples/          Executable example workflows
 scripts/           Build, local CI, smoke tests, load test, example verifier

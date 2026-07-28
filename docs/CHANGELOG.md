@@ -1,5 +1,53 @@
 # Changelog
 
+## [Unreleased] — post-v1.1.0 independent certification audit
+
+An independent audit re-verified the v1.1.0 tree from scratch, assuming no
+previous milestone was correct. Five Critical/High defects that every prior
+milestone had missed were reproduced by execution and fixed. No features were
+added and no working code was refactored. Full evidence in
+`docs/POST_V110_AUDIT.md`.
+
+### Security
+
+- **SSRF guard bypassed by HTTP redirect (AUDIT-1, Critical).**
+  `validate_outbound_url` was applied only to the initial URL while `httpx` was
+  told `follow_redirects=True`, so any public host could bounce a request to
+  `169.254.169.254` or another internal address. Redirects are now followed
+  manually with every hop re-validated. Both HTTP node implementations were
+  affected and both are fixed.
+- **Login rate limiter evaded by rotating an `Authorization` header
+  (AUDIT-2, High).** The limiter keyed on the presented credential, giving each
+  guess a fresh bucket; 15/15 attempts were admitted against a 3/min budget.
+  Credential endpoints now bucket by network address.
+- **`/api/system/{info,metrics,events,scheduler/jobs}` were readable by
+  anonymous callers (AUDIT-3, High)** with `AUTH_ENABLED=true`, disclosing the
+  OS build, Python version, which risky executors are enabled, the PID, memory
+  use and live workflow/node names. All four now require `read`. `/node-types`
+  and `/node-schemas` stay public for the editor palette.
+
+### Fixed
+
+- **Email node leaked bcc addresses and never delivered them (AUDIT-4, High).**
+  bcc recipients were written into the visible `To:` header, and because the
+  SMTP envelope was derived from headers, bcc was simultaneously dropped while
+  the node reported `sent: true`. Headers and envelope are now separate;
+  verified against a real SMTP server.
+- **AI providers ignored their own configuration (AUDIT-5, High).**
+  `OpenAIProvider` read `os.environ` directly, so an `OPENAI_API_KEY` set in
+  `.env` was invisible and the orchestrator silently fell back to another
+  provider. `OPENAI_BASE_URL` and `OLLAMA_BASE_URL` were hardcoded and had no
+  effect at all. Both providers now resolve from `settings`.
+
+### Testing
+
+- Added 15 regression tests in `backend/tests/audit/`, each confirmed to fail
+  against the pre-fix tree. Backend suite: **1576 → 1591 passing**.
+- Corrected published totals in `README.md` and `TEST_COVERAGE.md`, and marked
+  carried-forward figures (PostgreSQL, coverage, examples, latency) as **not
+  re-executed** in this audit rather than restating them as fresh.
+
+
 ## [1.1.0] - 2026-07-28 — General Availability
 
 ### Milestone 10 — v1.1.0 release and final production certification

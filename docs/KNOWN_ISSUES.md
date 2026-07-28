@@ -1,6 +1,36 @@
 # Known Issues
 
-## M10 (v1.1.0 GA) — current
+## Post-v1.1.0 independent certification audit — current
+
+An independent audit re-verified the v1.1.0 tree from scratch, assuming no
+previous milestone was correct. It found **five Critical/High defects that
+every prior milestone had missed**, all of which are now fixed and covered by
+regression tests in `backend/tests/audit/` (each confirmed to fail against the
+pre-fix tree). See `docs/POST_V110_AUDIT.md` for full evidence.
+
+### Fixed by this audit
+
+| ID | Severity | Defect |
+| --- | --- | --- |
+| AUDIT-1 | **Critical** | **SSRF guard bypassed by an HTTP redirect.** `validate_outbound_url` was applied only to the initial URL, then `httpx` was told `follow_redirects=True`. A public host answering `302 Location: http://169.254.169.254/...` reached cloud metadata. Reproduced end to end |
+| AUDIT-2 | **High** | **Login rate limiter evaded by rotating a junk `Authorization` header.** The limiter keyed on the credential, so each guess got a fresh bucket. Measured: 15/15 attempts admitted against a 3/min budget |
+| AUDIT-3 | **High** | **`/api/system/{info,metrics,events,scheduler/jobs}` readable anonymously** with `AUTH_ENABLED=true`, disclosing OS build, Python patch version, which risky executors are enabled, the PID, memory use and live workflow/node names |
+| AUDIT-4 | **High** | **Email node put bcc addresses in the visible `To:` header** and, because `send_message` derived the envelope from headers, bcc was simultaneously never delivered. Both halves verified against a real SMTP server |
+| AUDIT-5 | **High** | **`OPENAI_API_KEY` from `.env` never reached the OpenAI provider** (it read `os.environ` directly, bypassing pydantic-settings), and `OPENAI_BASE_URL`/`OLLAMA_BASE_URL` were hardcoded and had no effect at all |
+
+### Open recommendations from this audit (not fixed — Medium/Low)
+
+| # | Issue | Impact | Recommendation |
+| --- | --- | --- | --- |
+| A-1 | 30 npm advisories (3 critical, 24 high) in the frontend **dev** dependency tree — `electron-builder`, `vitest`/`@vitest/ui`, `tar`, `minimatch` | Build/test tooling only; **no runtime exposure**. Production dependency tree has exactly **1 moderate** advisory (`uuid` <11.1.1, bounds check in v3/v5/v6 — Creator OS uses v4, which is unaffected) | `npm audit fix --force` pulls breaking majors (`electron-builder` 26, `vitest` 4). Schedule as its own change with the suites re-run |
+| A-2 | `backend/main.py` is a dead V1.0 stub serving an app with no routers | Running `uvicorn main:app` silently starts a backend where every API 404s. The README warns about it, which is evidence the trap is real | Delete it, or make it import and re-export `app.main:app` |
+| A-3 | `HttpRequestExecutor` (legacy, `executors.py`) duplicates `HTTPRequestNode` (`nodes/network_nodes.py`) | Two HTTP implementations to keep in security parity; the redirect SSRF fix had to be applied twice, in both. `http_request` resolves to the legacy one, `httpRequest` to the new one | Alias `http_request` to `HTTPRequestNode` and retire the legacy class |
+| A-4 | No `LICENSE` file (open since M7) | All rights reserved by default; blocks reuse, forking, distribution. `backend/Dockerfile` already declares `org.opencontainers.image.licenses="MIT"`, so the image metadata and the repository **contradict each other** | Add the intended LICENSE, or correct the Dockerfile label |
+| A-5 | `uuid` and `lodash-es` are declared production dependencies; `lodash-es` is imported nowhere | Dead dependency in the shipped tree | Remove `lodash-es` from `frontend/package.json` |
+| A-6 | `run_execution_v2` is 523 lines, `run_execution` 250 | Complexity hotspot; the two paths duplicate orchestration logic | Refactor only alongside a behavioural change, with tests first |
+| A-7 | `backend/test_endpoints.sh` references (line 5, `source venv/bin/activate`) a `venv/` that the documented setup never creates (`.venv/`) | The script cannot run as written | Fix the path or delete the script |
+
+## M10 (v1.1.0 GA)
 
 M10 certified the repository for the v1.1.0 release: full audit, every suite
 re-executed, the production deployment path re-run against real PostgreSQL

@@ -10,7 +10,11 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, Query
 
-from app.api.dependencies import require_manage_settings, require_view_audit
+from app.api.dependencies import (
+    require_manage_settings,
+    require_read,
+    require_view_audit,
+)
 from app.core.startup import validate_settings
 from app.infrastructure.config.settings import settings
 from app.infrastructure.events.event_bus import event_bus
@@ -27,7 +31,16 @@ _PROCESS_START = time.time()
 
 
 @router.get("/info", summary="Runtime and build information")
-def system_info() -> Dict[str, Any]:
+def system_info(
+    _: Principal = Depends(require_read),
+) -> Dict[str, Any]:
+    """Runtime, platform and feature-flag information.
+
+    Requires ``read``: this payload names the OS build, the Python patch
+    release and exactly which risky executors (shell, Python, JavaScript, SQL)
+    are switched on. That is target-selection information and must not be
+    readable by an unauthenticated caller.
+    """
     return {
         "name": settings.APP_NAME,
         "version": __version__,
@@ -87,7 +100,10 @@ def recent_errors(
 
 
 @router.get("/metrics", summary="Lightweight process metrics")
-def metrics() -> Dict[str, Any]:
+def metrics(
+    _: Principal = Depends(require_read),
+) -> Dict[str, Any]:
+    """Process metrics. Requires ``read``: exposes the PID and memory profile."""
     payload: Dict[str, Any] = {
         "uptime_seconds": round(time.time() - _PROCESS_START, 2),
         "pid": os.getpid(),
@@ -149,10 +165,19 @@ def node_schemas(
 def recent_events(
     limit: int = Query(50, ge=1, le=200),
     event_type: str = Query("", description="Optional exact event name filter"),
+    _: Principal = Depends(require_read),
 ) -> List[Dict[str, Any]]:
+    """Recent in-process events.
+
+    Requires ``read``: event payloads carry workflow and node names plus node
+    failure messages, which is execution content rather than public metadata.
+    """
     return event_bus.recent(limit=limit, event_type=event_type or None)
 
 
 @router.get("/scheduler/jobs", summary="Scheduled background jobs")
-def scheduler_jobs() -> List[Dict[str, Any]]:
+def scheduler_jobs(
+    _: Principal = Depends(require_read),
+) -> List[Dict[str, Any]]:
+    """Scheduled jobs. Requires ``read``: job names describe internal wiring."""
     return job_scheduler.list_jobs()

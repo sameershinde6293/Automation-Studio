@@ -8,7 +8,7 @@ streaming and a full execution history.
 Runs two ways from one codebase: a **local desktop app** (SQLite, zero
 configuration) or a **multi-user server** (PostgreSQL, JWT auth, RBAC, metrics).
 
-**Version 1.1.0-rc3** · Release Candidate 3 · [Release notes](docs/RELEASE_NOTES.md) · [Known issues](docs/KNOWN_ISSUES.md) · [M9 validation](docs/M9_VALIDATION_REPORT.md)
+**Version 1.1.0** · General Availability · [Release notes](docs/RELEASE_NOTES.md) · [Known issues](docs/KNOWN_ISSUES.md) · [M10 release certification](docs/M10_RELEASE_CERTIFICATION.md)
 
 ---
 
@@ -86,8 +86,21 @@ docker compose --profile tools run --rm migrate
 docker compose up -d
 ```
 
-> **Docker is partially validated in M8.** Static validation expanded to 44 checks + 53 tests (23 M7 + 30 M8): multi-stage builds, non-root USER, HEALTHCHECK liveness/readiness, explicit bridge network `creator-os-net`, log rotation json-file 10m x5, volume driver local, security_opt no-new-privileges, resource limits, env var contract, nginx proxies to backend:8000 with SSE buffering off. The images and compose stack have still **never been executed** in this environment — no container runtime has been available in M5, M6, M7 or M8 (no docker/podman/nerdctl, no socket, registries unreachable). Every process the containers would run *has* been verified outside them (same PostgreSQL 16.2, same production settings, same Uvicorn command line, same probes), plus production deployment scripts (`deploy.sh`, `upgrade.sh`, `rollback.sh`, `backup.sh`, `restore.sh`, `production_check.sh`) and reverse proxy configs (nginx with TLS+S SSE, caddy, systemd). Treat your first containerised deployment as a validation exercise using `scripts/deploy.sh`.
-> See [docs/M8_VALIDATION_REPORT.md](docs/M8_VALIDATION_REPORT.md) and [docs/M7_RELEASE_AUDIT.md §6](docs/M7_RELEASE_AUDIT.md).
+> **Docker is validated statically only — it has never been run.** Across M5,
+> M6, M7, M8, M9 and now M10 no container runtime has existed in the validation
+> environment (no `docker`/`podman`/`nerdctl`, no `/var/run/docker.sock`, and
+> `registry-1.docker.io` and `ghcr.io` are both unreachable). What *is* verified:
+> 44 static checks + 53 asset tests covering multi-stage builds, non-root USER,
+> HEALTHCHECK liveness/readiness, the `creator-os-net` bridge network, json-file
+> log rotation 10m x5, `no-new-privileges`, resource limits, the `${VAR}`
+> contract against `.env.production.example`, and nginx proxying to
+> `backend:8000` with SSE buffering off. Every *process* the containers would
+> run has been executed outside them against the same PostgreSQL 16.2 — same
+> production settings, same Uvicorn command line, same probes, same migration
+> and backup/restore commands. **That is not a substitute for running it.**
+> Treat your first containerised deployment as a validation exercise and use
+> `scripts/deploy.sh`.
+> See [docs/M10_RELEASE_CERTIFICATION.md](docs/M10_RELEASE_CERTIFICATION.md) and [docs/M8_VALIDATION_REPORT.md](docs/M8_VALIDATION_REPORT.md).
 
 The **source + PostgreSQL** path is fully verified. Full procedure, sizing data
 and hardening checklist: **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** and **[docs/M8_VALIDATION_REPORT.md](docs/M8_VALIDATION_REPORT.md)**.
@@ -96,31 +109,32 @@ and hardening checklist: **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** and **[doc
 
 ## Project status
 
-Release Candidate 3. Verified on 2026-07-28 (M9) on a staging deployment
-running against **real PostgreSQL 16.2**:
+**v1.1.0 General Availability.** Re-verified from scratch on 2026-07-28 (M10)
+on a production-shaped deployment running against **real PostgreSQL 16.2**.
+Every number below was measured in the M10 certification run, not carried
+forward from an earlier milestone:
 
 | | |
 | --- | --- |
-| Backend tests | **1562 passed / 10 skipped** (SQLite) · **1570 passed / 2 skipped** (PostgreSQL 16.2) |
-| PostgreSQL migration suite | **8/8 executed** — skipped in M6, M7 and M8, runs for the first time in M9 |
-| Frontend tests | **179 passed** |
-| Typecheck / production build | clean · 343.85 kB (109.08 kB gzip) |
-| Migrations | upgrade → downgrade → re-upgrade verified (SQLite + PostgreSQL) |
-| Examples | **4/4 executed** against live backend (with SSL_CERT_FILE workaround for TLS interception) |
-| Long run | **48 min** continuous under load: 408 executions, **0 failures**, 0 non-200 probes, RSS 91→100 MB, CPU 1.0% of one core |
-| Performance | `/health` p95 2.9 ms · workflow exec p95 68 ms · 100 concurrent readers, 0 errors · startup 1.1 s · shutdown 188 ms |
-| Failure testing | DB loss → 503 ready / 200 live, recovers in 1 s without restart · SIGKILL and SIGTERM leave no orphaned executions · disk-full returns a clean 500 |
-| Backup / restore | **Disaster-recovery drill executed**: dump → drop → restore → 20 tables, all rows, migration state intact, app boots and authenticates |
-| Docker | **Partially validated** — 44 static checks + 53 docker asset tests; runtime **still never executed** (no container runtime, registries unreachable) — see M9 report §9 |
-| CI | `ci/github-actions-ci.yml` present; `.github/workflows/ci.yml` still requires maintainer activation |
-| Observability | `/health`, `/health/live`, `/health/ready`, `/metrics` (**14 metric families**, incl. new DB pool gauges), JSON logs with correlation IDs, audit log |
+| Backend tests | **1576 passed / 10 skipped** (SQLite) · **1584 passed / 2 skipped** (PostgreSQL 16.2) · 0 failed |
+| PostgreSQL migration suite | **8/8 executed** against real PostgreSQL 16.2 |
+| Frontend tests | **179 passed** (13 files) |
+| Typecheck / production build | clean · 343.85 kB (109.08 kB gzip), 1735 modules |
+| Migrations | upgrade → downgrade to base → re-upgrade on PostgreSQL: **0 orphaned enum types**, 19 tables restored |
+| Examples | **4/4 executed** against an authenticated production backend on PostgreSQL |
+| Performance | `/health` p50 2.7 ms / p95 3.4 ms · startup **41 ms** · graceful SIGTERM shutdown clean |
+| Failure testing | DB loss → **503 ready / 200 live**, recovers in **~1 s without restart** · SIGKILL leaves **no orphaned executions** |
+| Backup / restore | **Disaster-recovery drill executed**: 16 KB `pg_dump` → `DROP SCHEMA CASCADE` → restore → 20 tables, all rows and migration state intact, app authenticates and serves 200 |
+| Security posture | `/docs` 404 · unauthenticated API 401 · bad Host 400 · secrets appear **0 times** in logs |
+| Docker | **Static only** — 44 checks + 53 asset tests pass; runtime **never executed** (no container runtime, registries unreachable) — 5th consecutive milestone |
+| CI | `ci/github-actions-ci.yml` present; `.github/workflows/` **cannot be pushed** by this app — requires maintainer activation |
+| Observability | `/health`, `/health/live`, `/health/ready`, `/metrics` (**14 metric families** confirmed live, incl. DB pool gauges), JSON logs with correlation IDs, audit log |
 
-**Readiness: 94%** (up from 92% M8). Raised because the system now runs on real
-PostgreSQL and backup/restore has actually been performed; held below 98%
-because the Docker deployment path has still never been executed, multi-replica
-operation is untested, and 48 minutes is not a 24-hour soak. Full evidence,
-including four defects found and fixed:
-**[docs/M9_VALIDATION_REPORT.md](docs/M9_VALIDATION_REPORT.md)** (current), **[docs/M8_VALIDATION_REPORT.md](docs/M8_VALIDATION_REPORT.md)**.
+**Production readiness: 94%.** Held below 98% because the Docker deployment
+path has still never been executed here, multi-replica operation is untested,
+no 24-hour soak has been run, and CI has never executed. Full evidence and the
+defects found in this milestone:
+**[docs/M10_RELEASE_CERTIFICATION.md](docs/M10_RELEASE_CERTIFICATION.md)** (current), **[docs/M9_VALIDATION_REPORT.md](docs/M9_VALIDATION_REPORT.md)**.
 
 ---
 
@@ -151,6 +165,8 @@ including four defects found and fixed:
 [Release notes](docs/RELEASE_NOTES.md) ·
 [Changelog](docs/CHANGELOG.md) ·
 [Project status](docs/PROJECT_STATUS.md) ·
+[M10 release certification](docs/M10_RELEASE_CERTIFICATION.md) ·
+[Release checklists](docs/RELEASE_CHECKLIST.md) ·
 [M7 release audit](docs/M7_RELEASE_AUDIT.md)
 
 ---
@@ -172,7 +188,21 @@ TEST_POSTGRES_URL=postgresql+psycopg://user:pass@localhost:5432/scratch \
   ./.venv/bin/python -m pytest tests/m6/test_postgres_migrations_m6.py
 ```
 
-CI is defined in `.github/workflows/ci.yml` (activated in M8) and `ci/github-actions-ci.yml` (source). The workflow now has 7 jobs including Docker build inspection, example verification, and production-build. See `ci/README.md` and `docs/M8_VALIDATION_REPORT.md` §2.
+CI is defined in `ci/github-actions-ci.yml` (7 jobs, including Docker build
+inspection, example verification and production-build). **It has never
+executed.** GitHub only runs workflows from `.github/workflows/`, and pushing
+there is rejected for this automation account (`refusing to allow a GitHub App
+to create or update workflow ... without 'workflows' permission`). A maintainer
+must activate it:
+
+```bash
+mkdir -p .github/workflows
+cp ci/github-actions-ci.yml .github/workflows/ci.yml
+git add .github/workflows/ci.yml && git commit -m "ci: activate pipeline" && git push
+```
+
+Until then `./scripts/ci-local.sh` runs the same checks locally. See
+`ci/README.md`.
 
 ---
 
@@ -188,7 +218,7 @@ backend/           FastAPI + SQLAlchemy 2 + Alembic
   app/domain/      ORM models and repositories
   app/services/    Workflow engine, AI orchestration, media, security, plugins
   app/infrastructure/  Config, database, logging, metrics, scheduler
-  tests/           1562 tests
+  tests/           1576 tests (1584 with PostgreSQL enabled)
 
 examples/          Executable example workflows
 scripts/           Build, local CI, smoke tests, load test, example verifier

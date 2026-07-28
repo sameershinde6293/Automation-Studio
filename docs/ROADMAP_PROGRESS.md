@@ -26,6 +26,9 @@
 - [x] M5 — Production readiness & platform hardening
 - [x] M6 — Production validation & scalability
 - [x] M7 — Production deployment & Release Candidate (**88%**, `M7_RELEASE_AUDIT.md`)
+- [x] M8 — Infrastructure validation & container assets (**92%**, `M8_VALIDATION_REPORT.md`)
+- [x] M9 — Production staging & real-world validation (**94%**, `M9_VALIDATION_REPORT.md`)
+- [x] **M10 — v1.1.0 release & final production certification** (**94%**, `M10_RELEASE_CERTIFICATION.md`)
 
 > Note: items 14 ("harden for production") and 15 ("produce release candidate")
 > were both ticked in the V1.0 list while neither was true — the deployment path
@@ -34,8 +37,13 @@
 
 ## Planned
 
-- [ ] M8 — Durable queue & horizontal scaling (Redis)
-- [ ] M9 — Media pipeline UX & first-party AI providers
+- [ ] M11 — Durable queue & horizontal scaling (Redis)
+- [ ] M12 — Media pipeline UX & first-party AI providers
 - [ ] Verify the Docker deployment path on a machine with a container runtime
-- [ ] Activate CI
+- [ ] Activate CI — never executed on any commit to date
 - [ ] Add a LICENSE
+- [ ] Run a 24-hour soak and a multi-replica trial
+
+> The M8/M9 entries above were previously listed as *planned* under the wrong
+> numbers while milestones of the same names had already shipped. Corrected in
+> the M10 self-audit.

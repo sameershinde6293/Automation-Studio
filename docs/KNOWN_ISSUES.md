@@ -1,5 +1,32 @@
 # Known Issues
 
+## M10 (v1.1.0 GA) — current
+
+M10 certified the repository for the v1.1.0 release: full audit, every suite
+re-executed, the production deployment path re-run against real PostgreSQL
+16.2. Four defects were found and fixed (`M10_RELEASE_CERTIFICATION.md`).
+**No release blockers.** What remains open is below, followed by everything
+carried forward.
+
+| # | Issue | Impact | Workaround |
+| --- | --- | --- | --- |
+| M10-1 | **Docker runtime still never executed** — fifth consecutive milestone | Image build, `docker compose up`, container networking, volume persistence across recreate, in-container HEALTHCHECK execution, restart policies and `cpus`/`memory` enforcement are all unverified. Re-probed in M10: no `docker`/`podman`/`nerdctl`/`buildah`, no socket, `registry-1.docker.io` and `ghcr.io` unreachable, no `docker.io` apt package | 44 static checks + 53 asset tests pass, and every *process* the containers would run has been executed outside them against the same PostgreSQL 16.2. **Treat the first containerised deployment as a validation exercise**; use `scripts/deploy.sh` |
+| M10-2 | **CI has never executed** | No pipeline has ever run on any commit in this repository. `.github/workflows/` does not exist and cannot be created by the automation account (`refusing to allow a GitHub App to create or update workflow ... without 'workflows' permission`). **The M8 claim that CI was "activated" was false and has been corrected** | A maintainer runs `mkdir -p .github/workflows && cp ci/github-actions-ci.yml .github/workflows/ci.yml`. `./scripts/ci-local.sh` runs the same checks locally |
+| M10-3 | `/health/ready` reports `ready` when the schema is missing | The probe runs `SELECT 1`, which succeeds against an empty schema, so a dropped/never-migrated schema reads as ready while the API returns 500. Observed deliberately during the M10 disaster drill | Verify `alembic current` after deploying. Deliberately not "fixed": adding a table-level query to every scrape has a real cost and no verified failure mode motivating it |
+| M10-4 | No `LICENSE` file | All rights reserved by default, which blocks reuse, forking and distribution. Open since M7 | A maintainer must choose and add one |
+| M10-5 | No 24-hour soak, no multi-replica run, no TLS termination executed | Slow leaks, log rollover at 10 MB, `pool_recycle` at 1800 s and multi-hour scheduler drift remain unproven; nginx/Caddy configs have never served a request | Run a soak and `nginx -t` on real infrastructure before GA on your own estate |
+
+### Resolved in M10
+
+| Issue | Severity | Resolution |
+| --- | --- | --- |
+| **`SSL_CERT_FILE` applied to the wrong process.** The documented TLS-interception workaround was exported for `verify_examples.py`, but the HTTP node runs inside the backend, so it never reached the code making the request — example 03 still failed `CERTIFICATE_VERIFY_FAILED` in `ci-local.sh` and the CI `examples` job | Medium | Both runners now export it for the backend before Uvicorn starts; guidance corrected in `INSTALLATION_GUIDE.md` and `examples/README.md`. 4/4 examples pass (M10-F1) |
+| **Version drift in five documentation headers** (`DEPLOYMENT`, `FAQ`, `TROUBLESHOOTING`, `UPGRADE_GUIDE`, `INSTALLATION_GUIDE` all still said `v1.1.0-rc1`) plus stale test totals in `TEST_COVERAGE.md` | Low | Unified on `1.1.0`, totals re-measured, and doc headers are now covered by `tests/m10/test_release_certification_m10.py` (M10-F2) |
+| **Two different milestones both numbered M10** in `PROJECT_STATUS.md`; M9 still described as "this branch" after merging; duplicate `[1.1.0]` CHANGELOG headings | Low | Renumbered M11/M12, M9 recorded as PR #11, changelog heading disambiguated; uniqueness now test-guarded (M10-F3) |
+| **README and `PROJECT_STATUS.md` claimed CI was "activated in M8"** | Low | False — corrected in place rather than preserved, with the activation procedure documented (M10-F4) |
+
+---
+
 ## M9 (release candidate 3) — current
 
 M9 ran Creator OS on a production-shaped staging deployment backed by **real

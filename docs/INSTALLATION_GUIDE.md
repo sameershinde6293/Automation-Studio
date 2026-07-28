@@ -1,6 +1,6 @@
 # Installation Guide
 
-Creator OS v1.1.0-rc1 · last verified 2026-07-27
+Creator OS v1.1.0 · last verified 2026-07-28
 
 Every command below was executed from a clean clone on Linux with Python 3.11.2
 and Node 22.22.3 during the M7 release audit. Where something is unverified, it
@@ -225,7 +225,7 @@ Produces an AppImage on Linux, NSIS installer on Windows, and a `.dmg` on macOS.
 | `no such table: workflows` | Migrations not applied. `alembic upgrade head` |
 | API returns 404 for everything | You started `main:app`. Use `app.main:app` |
 | `.env` appears to be ignored | Pre-rc1 build — upgrade, or set `CREATOR_OS_ENV_FILE` |
-| `CERTIFICATE_VERIFY_FAILED` from HTTP nodes | Corporate TLS interception. Start with `SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt` |
+| `CERTIFICATE_VERIFY_FAILED` from HTTP nodes | Corporate TLS interception. Export `SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt` **for the backend process** (the HTTP node runs server-side) — setting it on a client script has no effect |
 | Media nodes report FFmpeg missing | Install `ffmpeg`, or set `FFMPEG_BINARY`. Image handling works regardless |
 | Port 8000 or 5173 already in use | `uvicorn --port 8001`, or `npm run dev -- --port 5174` |
 

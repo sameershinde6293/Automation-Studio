@@ -1,20 +1,25 @@
 # Test Coverage
 
-## Current totals (2026-07-27, M7 — v1.1.0-rc1)
+## Current totals (2026-07-28, M10 — v1.1.0)
+
+All figures below were measured in the M10 certification run on this
+environment. Nothing is carried forward from an earlier milestone.
 
 | Suite | Tests | Status |
 | --- | --- | --- |
-| Backend — SQLite (default) | **1484 passed**, 8 skipped (1492 collected) | ✅ |
-| Backend — PostgreSQL 16.2 | **1492 passed, 0 skipped** | ✅ |
-| Backend line coverage | **89%** (7734 statements, 875 uncovered) | ✅ measured, not estimated |
+| Backend — SQLite (default) | **1576 passed**, 10 skipped, 0 failed | ✅ |
+| Backend — PostgreSQL 16.2 | **1584 passed**, 2 skipped, 0 failed | ✅ |
+| Backend line coverage | **89%** (7782 statements, 866 uncovered) | ✅ measured, not estimated |
 | Frontend (Vitest, 13 files) | **179 passed** | ✅ |
 | Frontend typecheck (`tsc --noEmit`) | clean | ✅ |
-| Frontend production build | clean, 343.85 kB (109.08 kB gzip) | ✅ |
-| Example workflows executed end to end | **4/4** | ✅ |
+| Frontend production build | clean, 343.85 kB (109.08 kB gzip), 1735 modules | ✅ |
+| Example workflows executed end to end | **4/4** against an authenticated production backend | ✅ |
+| E2E smoke (`e2e_execution_smoke.py`, `e2e_control_smoke.py`) | both pass | ✅ |
 
-The 8 SQLite-run skips are the PostgreSQL migration tests, which gate on
-`TEST_POSTGRES_URL`. **M7 ran them against real PostgreSQL 16.2 and all 8
-pass** — closing M6-5, which had been open since the tests were written.
+The 10 skips under SQLite are the PostgreSQL-gated tests, which key off
+`TEST_POSTGRES_URL`. With a real PostgreSQL 16.2 server (supplied here by the
+`pgserver` wheel) 8 of them execute, leaving 2 skips that are gated on other
+optional tooling.
 
 ### New in M7 (46 tests)
 
@@ -33,7 +38,7 @@ were confirmed to detect the defects they describe.
 ```bash
 ./scripts/ci-local.sh                              # all of the below
 
-cd backend && ./.venv/bin/python -m pytest -q      # 1484 passed, 8 skipped
+cd backend && ./.venv/bin/python -m pytest -q      # 1576 passed, 10 skipped
 cd frontend && npm test && npm run typecheck       # 179
 python scripts/verify_examples.py                  # 4/4 examples
 
@@ -119,4 +124,7 @@ TEST_POSTGRES_URL=postgresql+psycopg://user:pass@localhost:5432/scratch \
 - Clipboard operations
 - Import/Export & serialization
 
-All tests are written in Vitest + React Testing Library and are ready to run once the environment allows `npm install`.
+All frontend tests are written in Vitest + React Testing Library. They are
+executed on every milestone — most recently in M10: **179 passed, 13 files**.
+(The earlier wording "ready to run once the environment allows `npm install`"
+was stale from before the suite was first executed.)

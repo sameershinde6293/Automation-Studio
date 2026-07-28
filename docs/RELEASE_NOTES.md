@@ -1,5 +1,59 @@
 # Release Notes
 
+## v1.1.0 — General Availability
+
+**2026-07-28**
+
+The 1.1 line reaches GA. M10 added **no features**: it audited the whole
+repository, re-ran every suite from scratch, re-executed the production
+deployment path against real PostgreSQL 16.2, and corrected every claim that
+earlier milestones had overstated.
+
+### What changed in this release
+
+Only release-certification changes. The version moves `1.1.0-rc3` → `1.1.0`
+across the backend, frontend, lockfile, health payload and all documentation
+headers — five doc headers were still stamped `v1.1.0-rc1`, a drift that had
+survived three milestones because the consistency test only covered the README
+and `PROJECT_STATUS.md`. That test now covers the documentation headers too.
+
+### Defects fixed
+
+- **`SSL_CERT_FILE` was applied to the wrong process** (M10-F1). The documented
+  TLS-interception workaround was exported for `verify_examples.py`, but the
+  HTTP node runs *inside the backend*, so the variable never reached the code
+  making the request. `scripts/ci-local.sh` and the CI `examples` job now export
+  it for the backend; 4/4 examples pass.
+- **Three overstated claims corrected** (M10-F2/F3/F4): stale test totals in
+  `TEST_COVERAGE.md`, two different milestones both numbered M10 in
+  `PROJECT_STATUS.md`, and the assertion that CI was "activated in M8" — it
+  never was, and still has not run.
+
+### Verified in this release
+
+| | |
+| --- | --- |
+| Backend tests | **1576 passed / 10 skipped** (SQLite) · **1584 passed / 2 skipped** (PostgreSQL 16.2) · 0 failed |
+| Backend coverage | **89%** (7782 statements) |
+| Frontend | **179 passed**, typecheck clean, build 343.85 kB (109.08 kB gzip) |
+| Production boot | PostgreSQL 16.2, `/docs` 404, unauth 401, bad Host 400, startup 41 ms |
+| Disaster recovery | dump → `DROP SCHEMA CASCADE` → restore → 20 tables, all rows, app authenticates |
+| Failure injection | DB loss → 503 ready / 200 live, recovery ~1 s without restart; SIGKILL leaves no orphans |
+| Migrations | PostgreSQL upgrade → downgrade to base → re-upgrade, 0 orphaned enum types |
+| Examples | **4/4** on an authenticated production backend |
+| Observability | 14 metric families live; secrets appear 0 times in logs |
+
+### Known limitations — unchanged and stated plainly
+
+**Docker has never been executed.** Five consecutive milestones, no container
+runtime available and no reachable registry. Static validation only (44 checks
++ 53 tests). **CI has never run** — pushing `.github/workflows/` is rejected for
+the automation account. No 24-hour soak, no multi-replica deployment, no TLS
+termination executed, and **no LICENSE file**. Production readiness is **94%**,
+deliberately not higher. See `docs/M10_RELEASE_CERTIFICATION.md`.
+
+---
+
 ## v1.1.0-rc3 — Release Candidate 3
 
 **2026-07-28**

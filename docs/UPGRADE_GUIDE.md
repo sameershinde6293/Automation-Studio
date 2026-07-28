@@ -1,6 +1,6 @@
 # Upgrade Guide
 
-Creator OS v1.1.0-rc1
+Creator OS v1.1.0
 
 The order below is not arbitrary: **schema first, then code.** A new binary
 against an old schema fails on the first query; an old binary against a new
@@ -39,7 +39,7 @@ systemctl stop creator-os
 
 # 2. Fetch
 git fetch --tags
-git checkout v1.1.0-rc1
+git checkout v1.1.0
 
 # 3. Dependencies
 cd backend && ./.venv/bin/pip install -r requirements.txt
@@ -145,7 +145,7 @@ You lose everything written since the dump. That is the trade for certainty.
 
 ## Version-specific notes
 
-### → v1.1.0-rc1 (this release)
+### → v1.1.0 (this release, M10 GA)
 
 **No schema change.** The head revision is still `d5f3a7c81b64`; you can upgrade
 and roll back freely.

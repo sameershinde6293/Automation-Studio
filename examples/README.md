@@ -13,16 +13,23 @@ of them is **executed against a live backend** by
 
 ## Verification status
 
-Last run on 2026-07-27 against Creator OS 1.1.0-rc1 (Python 3.11.2, SQLite):
+Last run on 2026-07-28 (M10) against Creator OS 1.1.0, executed on an
+**authenticated production backend on PostgreSQL 16.2**:
 
 ```
-PASS  01-hello-automation.json      6 nodes / 6 edges   5 executed   14 ms
-PASS  02-ai-content-pipeline.json   5 nodes / 4 edges   5 executed  249 ms
-PASS  03-resilient-http-sync.json   7 nodes / 7 edges   5 executed  369 ms
-PASS  04-scheduled-batch-report.json 5 nodes / 4 edges  5 executed  516 ms
+PASS  01-hello-automation.json       6 nodes / 6 edges   5 executed
+PASS  02-ai-content-pipeline.json    5 nodes / 4 edges   5 executed  321 ms
+PASS  03-resilient-http-sync.json    7 nodes / 7 edges   5 executed  446 ms
+PASS  04-scheduled-batch-report.json 5 nodes / 4 edges   5 executed  536 ms
 
 4/4 examples passed
 ```
+
+> `03-resilient-http-sync.json` makes a real outbound HTTPS request. Behind a
+> TLS-inspecting proxy it fails with `CERTIFICATE_VERIFY_FAILED` unless the
+> **backend process** is started with
+> `SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt`. Setting that variable on
+> `verify_examples.py` has no effect — the request is made server-side (M10-F1).
 
 Each run imports the graph, validates it, executes it synchronously, reads the
 execution back, exports the graph and asserts the export round-trips.

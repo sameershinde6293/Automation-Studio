@@ -14,7 +14,7 @@ echo ""
 if [ $# -lt 1 ]; then
     echo "Usage: $0 <previous-commit-or-tag>"
     echo "Example: $0 HEAD~1  (rollback one commit)"
-    echo "Example: $0 v1.1.0-rc1"
+    echo "Example: $0 v1.1.0"
     echo "Example: $0 main (if you want to rollback migration only, use alembic downgrade)"
     echo ""
     echo "For migration-only rollback:"

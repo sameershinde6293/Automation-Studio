@@ -1,6 +1,6 @@
 # FAQ
 
-Creator OS v1.1.0-rc1
+Creator OS v1.1.0
 
 ## General
 

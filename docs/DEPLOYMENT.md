@@ -1,6 +1,6 @@
 # Deployment
 
-Creator OS v1.1.0-rc1 · last updated 2026-07-27 (M7)
+Creator OS v1.1.0 · last updated 2026-07-28 (M10)
 
 How to run Creator OS as a server. For the local desktop application see
 `INSTALLATION_GUIDE.md`.

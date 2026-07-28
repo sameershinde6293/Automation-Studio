@@ -55,6 +55,11 @@ echo "==> Examples verification (requires backend running)"
 echo "    Starting backend for example verification..."
 cd backend
 .venv/bin/alembic upgrade head -q
+# M10-F1: SSL_CERT_FILE must be exported for the *backend*, not the verifier.
+# The HTTP node runs server-side inside this process, so setting the variable
+# on `verify_examples.py` (as M8/M9 documented) never reached the code making
+# the outbound request — example 03 still failed CERTIFICATE_VERIFY_FAILED.
+export SSL_CERT_FILE="${SSL_CERT_FILE:-/etc/ssl/certs/ca-certificates.crt}"
 nohup .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 > /tmp/ci-backend.log 2>&1 &
 BACKEND_PID=$!
 cd ..

@@ -274,6 +274,11 @@ jobs:
       - name: Start backend and verify examples
         run: |
           alembic upgrade head
+          # M10-F1: the HTTP node runs inside the backend process, so a custom
+          # CA bundle must be exported here rather than on verify_examples.py.
+          if [ -f /etc/ssl/certs/ca-certificates.crt ]; then
+            export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+          fi
           nohup uvicorn app.main:app --host 127.0.0.1 --port 8000 > /tmp/backend.log 2>&1 &
           BACKEND_PID=$!
           echo "Backend PID: $BACKEND_PID"

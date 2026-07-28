@@ -1,5 +1,72 @@
 # Changelog
 
+## [1.1.0] - 2026-07-28 — General Availability
+
+### Milestone 10 — v1.1.0 release and final production certification
+
+No new features and no architectural change. M10 audited the entire repository,
+re-executed every verification path from scratch, and certified the tree for
+the v1.1.0 GA release. Full evidence in `M10_RELEASE_CERTIFICATION.md`.
+
+#### Changed
+
+- **Version promoted `1.1.0-rc3` → `1.1.0`** in `backend/app/version.py`,
+  `frontend/package.json`, `frontend/package-lock.json`, the README headline,
+  `PROJECT_STATUS.md`, the live `/health/ready` payload, `scripts/rollback.sh`
+  and the `git checkout` tag in the upgrade guide.
+- **Five documentation headers unified.** `DEPLOYMENT.md`, `FAQ.md`,
+  `TROUBLESHOOTING.md`, `UPGRADE_GUIDE.md` and `INSTALLATION_GUIDE.md` were all
+  still stamped `Creator OS v1.1.0-rc1` — three milestones out of date. The M9
+  consistency test only checked the README and `PROJECT_STATUS.md`, so the
+  drift was unguarded; the test now covers documentation headers as well.
+
+#### Fixed
+
+- **`SSL_CERT_FILE` was exported for the wrong process (M10-F1).** The
+  documented workaround for TLS-intercepting proxies was applied to
+  `scripts/verify_examples.py` in `scripts/ci-local.sh` and the CI `examples`
+  job. The HTTP node executes *inside the backend process*, so the variable
+  never reached the code performing the outbound request and example
+  `03-resilient-http-sync.json` still failed `CERTIFICATE_VERIFY_FAILED`.
+  Reproduced in this environment, then fixed by exporting the variable for the
+  backend before it starts; 4/4 examples now pass. The M8 and M9 reports which
+  claimed "4/4 with SSL_CERT_FILE workaround" were describing a command that
+  could not have produced that result on the verifier alone.
+- **Stale published test totals (M10-F2).** `TEST_COVERAGE.md` still carried
+  M7-era figures (1484 SQLite / 1492 PostgreSQL) and stated the frontend suite
+  was "ready to run once the environment allows `npm install`" — it has been
+  executing since M5. Re-measured: 1576 / 1584 / 179, coverage 89%.
+- **Two milestones both numbered M10 (M10-F3).** `PROJECT_STATUS.md` listed
+  "M10 — Durable queue" and "M10 — Media pipeline UX" as separate planned rows,
+  and still described M9 as "this branch" after it had merged as PR #11.
+  Renumbered to M11/M12 and corrected.
+- **CI was never "activated in M8" (M10-F4).** The README and
+  `PROJECT_STATUS.md` both asserted that `.github/workflows/ci.yml` was created
+  and CI activated. The push was rejected, the directory does not exist in the
+  repository, and the pipeline has still never executed. Corrected in place
+  rather than preserved.
+
+#### Verified
+
+Backend **1576 passed / 10 skipped** (SQLite) and **1584 passed / 2 skipped**
+(real PostgreSQL 16.2), 0 failed, 89% coverage. Frontend **179 passed**,
+typecheck clean, production build clean. Production boot on PostgreSQL with
+`/docs` 404, unauthenticated 401, bad Host 400 and startup in 41 ms. Full
+disaster-recovery drill (dump → `DROP SCHEMA CASCADE` → restore → authenticate).
+DB-loss injection recovering in ~1 s without restart. SIGKILL leaving no
+orphaned executions. PostgreSQL migration round trip with 0 orphaned enum
+types. 4/4 examples on an authenticated production backend. 14 metric families
+live. Secrets absent from logs. `production_check.sh` PASSED, 44/44 Docker
+static checks.
+
+#### Not verified — stated explicitly
+
+**Docker runtime was not executed** (fifth consecutive milestone): no
+`docker`/`podman`/`nerdctl`/`buildah`, no socket, `registry-1.docker.io` and
+`ghcr.io` unreachable, no `docker.io` apt package. **CI has never executed.**
+No 24-hour soak, no multi-replica run, no TLS termination, no LICENSE file,
+Electron shell never launched.
+
 ## [1.1.0-rc3] - 2026-07-28 — Release Candidate 3
 
 ### Milestone 9 — Production staging and real-world validation
@@ -192,7 +259,7 @@ socket, every registry unreachable, `podman` absent from package sources). Every
 process the containers would run has been verified outside them, and the assets
 are statically validated, but that is not the same as running the stack.
 
-## [1.1.0] - 2026-07-26
+## [1.1.0-dev] - 2026-07-26 — M6 development build
 
 ### Milestone 6 — Production validation, scalability and operational readiness
 

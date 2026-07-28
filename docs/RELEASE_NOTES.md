@@ -1,5 +1,119 @@
 # Release Notes
 
+## v1.1.1 — Security patch release
+
+**2026-07-28**
+
+**Recommended for all v1.1.0 deployments.** A post-GA independent audit found
+one Critical and four High defects that the v1.1.0 certification missed, plus
+one regression introduced by the first Critical fix and caught during
+stabilization. Six security-relevant fixes in total. **No features were added
+and no working code was refactored.**
+
+Upgrading is a drop-in replacement: **no database migration, no configuration
+change and no API change.** Two behaviours become stricter (see *Behaviour
+changes* below) — review them before rolling out.
+
+### Who should upgrade urgently
+
+| If you… | Then… |
+| --- | --- |
+| Run workflows containing an **HTTP or Webhook node** with URLs a user can influence | **Upgrade now.** CVE-class SSRF: the guard could be walked past with a redirect (AUDIT-1), and the first fix additionally leaked `Authorization` across origins (AUDIT-1a) |
+| Expose the API to any untrusted network with `AUTH_ENABLED=true` | **Upgrade now.** Login throttling could be bypassed entirely (AUDIT-2) and four endpoints answered anonymously (AUDIT-3) |
+| Use the **Email node** with bcc | **Upgrade now.** bcc addresses were both disclosed to all recipients and never delivered (AUDIT-4) |
+| Configure `OPENAI_API_KEY` or `OPENAI_BASE_URL`/`OLLAMA_BASE_URL` in `.env` | **Upgrade.** These settings had no effect; AI calls silently fell back to another provider (AUDIT-5) |
+| Run local desktop mode with no auth and no HTTP nodes | Low urgency; upgrade at convenience |
+
+### Security fixes
+
+**AUDIT-1 · Critical · SSRF guard bypassed by HTTP redirect**
+`validate_outbound_url()` correctly blocks loopback, private, link-local and
+cloud-metadata addresses — but was applied only to the *initial* URL, while the
+HTTP client was configured with `follow_redirects=True`. Any attacker-influenced
+public host could answer `302 Location: http://169.254.169.254/...` and the
+request was made. Redirects are now followed manually with **every hop
+re-validated**. Affected both HTTP node implementations; both are fixed.
+
+**AUDIT-1a · High · Credentials leaked across origins by the redirect fix**
+Found while re-reviewing AUDIT-1 during stabilization, before release. httpx
+strips `Authorization`/`Cookie` when a redirect leaves the origin; the first
+version of the manual redirect loop forwarded every header, handing the
+caller's bearer token to whatever host a redirect named. Credential headers are
+now stripped on cross-origin hops and preserved on same-origin hops and
+HTTP→HTTPS upgrades, matching httpx exactly.
+
+**AUDIT-2 · High · Login rate limiter evaded by rotating a header**
+The limiter keyed on the presented credential — which on a login endpoint is
+precisely what the attacker is guessing — so every attempt with a different
+junk `Authorization` header got its own fresh bucket. Measured: 15/15 attempts
+admitted against a 3-per-minute budget. Credential endpoints now bucket by
+network address.
+
+**AUDIT-3 · High · Deployment detail readable without a credential**
+With `AUTH_ENABLED=true`, `/api/system/info`, `/metrics`, `/events` and
+`/scheduler/jobs` all answered `200` to anonymous callers, disclosing the OS
+build, Python patch version, **which risky executors are enabled**, the PID,
+memory use and live workflow/node names. All four now require `read`. They had
+been explicitly allowlisted in the route-coverage test, so the check designed
+to catch unprotected endpoints was told to skip them.
+
+**AUDIT-4 · High · Email node leaked bcc recipients and never delivered them**
+Two defects with opposite effects: bcc addresses were written into the visible
+`To:` header (disclosed to every recipient), and because the SMTP envelope was
+derived from headers — where a `Bcc:` header is correctly never written — bcc
+was simultaneously **never delivered**, while the node returned `sent: true`.
+Verified against a real SMTP server before and after.
+
+**AUDIT-5 · High · AI providers ignored their own configuration**
+`OpenAIProvider` read `os.environ` directly, but settings are loaded from
+`.env` by pydantic-settings, which does not populate the process environment.
+A key configured the documented way was invisible, so every call raised
+`OPENAI_API_KEY is not set` and the orchestrator **silently fell back** to
+Ollama or the mock provider — answers were quietly wrong rather than failing
+loudly. `OPENAI_BASE_URL` and `OLLAMA_BASE_URL` were hardcoded and had no
+effect at all.
+
+### Behaviour changes
+
+Two changes are deliberately stricter and may affect existing integrations:
+
+1. **`/api/system/{info,metrics,events,scheduler/jobs}` now require the `read`
+   permission** when `AUTH_ENABLED=true`. Unauthenticated monitoring scrapes of
+   these paths will start returning `401`. `/api/system/node-types` and
+   `/node-schemas` remain public for the editor palette, and `/health`,
+   `/health/live`, `/health/ready` and `/metrics` are unchanged — use those for
+   liveness and Prometheus.
+2. **`Authorization`/`Cookie` headers set on an HTTP node are no longer sent
+   after a cross-origin redirect.** This matches every mainstream HTTP client.
+   A workflow that depended on the old leak-through behaviour must target the
+   final URL directly.
+
+### Verification
+
+| Check | Result |
+| --- | --- |
+| Backend, SQLite | **1594 passed**, 10 skipped, 0 failed |
+| Backend, PostgreSQL 16.2 | **1602 passed**, 2 skipped, 0 failed |
+| Frontend (Vitest, 13 files) | **179 passed** |
+| Frontend typecheck | clean |
+| Production build | clean — 343.85 kB (109.08 kB gzip), 1735 modules |
+| Security regression tests | **18 passed** (`backend/tests/audit/`) |
+| Audit tests vs. pre-fix v1.1.0 tree | **13 of 18 fail**, as required |
+
+### Upgrading
+
+```bash
+git fetch --tags && git checkout v1.1.1
+cd backend && ./.venv/bin/pip install -r requirements.txt
+cd ../frontend && ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm install && npm run build
+```
+
+No `alembic upgrade` is required — the schema is unchanged from v1.1.0.
+Rollback is `scripts/rollback.sh v1.1.0`, with the caveat that doing so
+reinstates all six defects above.
+
+---
+
 ## v1.1.0 — General Availability
 
 **2026-07-28**

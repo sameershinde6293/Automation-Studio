@@ -1,5 +1,83 @@
 # Changelog
 
+## [1.1.1] - 2026-07-28 — Security patch release
+
+An independent post-GA audit re-verified the v1.1.0 tree from scratch, assuming
+no previous milestone was correct. It found **one Critical and four High
+defects** that every prior milestone had missed; post-audit stabilization found
+**one further High regression** introduced by the first fix and corrected it
+before release. Six security-relevant fixes in total.
+
+**No features added. No working code refactored. No schema change, no
+configuration change, no API change.** Recommended for all v1.1.0 deployments —
+see `docs/RELEASE_NOTES.md` for upgrade urgency by deployment type and
+`docs/POST_V110_AUDIT.md` for full evidence.
+
+### Security
+
+- **SSRF guard bypassed by HTTP redirect (AUDIT-1, Critical).**
+  `validate_outbound_url` was applied only to the initial URL while `httpx` was
+  configured with `follow_redirects=True`, so any attacker-influenced public
+  host could bounce a request to `169.254.169.254` or another internal address.
+  Redirects are now followed manually with every hop re-validated. Both HTTP
+  node implementations were affected and both are fixed.
+- **Credential headers leaked across origins by the redirect fix
+  (AUDIT-1a, High).** Caught while re-reviewing AUDIT-1 during stabilization,
+  before release. `httpx` strips `Authorization`/`Cookie` when a redirect leaves
+  the origin; the first version of the manual loop forwarded every header.
+  Credentials are now stripped cross-origin and preserved on same-origin hops
+  and HTTP→HTTPS upgrades, matching `httpx` semantics exactly.
+- **Login rate limiter evaded by rotating an `Authorization` header
+  (AUDIT-2, High).** The limiter keyed on the presented credential, giving each
+  guess a fresh bucket; 15/15 attempts were admitted against a 3/min budget.
+  Credential endpoints now bucket by network address, preserving
+  `TRUST_PROXY_HEADERS` semantics.
+- **`/api/system/{info,metrics,events,scheduler/jobs}` were readable by
+  anonymous callers (AUDIT-3, High)** with `AUTH_ENABLED=true`, disclosing the
+  OS build, Python version, which risky executors are enabled, the PID, memory
+  use and live workflow/node names. All four now require `read`.
+  `/node-types` and `/node-schemas` stay public for the editor palette.
+
+### Fixed
+
+- **Email node leaked bcc addresses and never delivered them (AUDIT-4, High).**
+  bcc recipients were written into the visible `To:` header, and because the
+  SMTP envelope was derived from headers, bcc was simultaneously dropped while
+  the node reported `sent: true`. Headers and envelope are now separate;
+  verified against a real SMTP server.
+- **AI providers ignored their own configuration (AUDIT-5, High).**
+  `OpenAIProvider` read `os.environ` directly, so an `OPENAI_API_KEY` set in
+  `.env` was invisible and the orchestrator silently fell back to another
+  provider. `OPENAI_BASE_URL` and `OLLAMA_BASE_URL` were hardcoded and had no
+  effect. Both providers now resolve from `settings` at call time.
+
+### Changed
+
+- **Two deliberate behaviour changes.** `/api/system/{info,metrics,events,scheduler/jobs}`
+  now return `401` to unauthenticated callers (use `/health*` and `/metrics`
+  for monitoring), and `Authorization`/`Cookie` headers on an HTTP node are no
+  longer forwarded across a cross-origin redirect.
+- Version `1.1.0` → `1.1.1` across `backend/app/version.py`,
+  `frontend/package.json`, `frontend/package-lock.json`, `backend/Dockerfile`,
+  the README headline, `PROJECT_STATUS.md` and five documentation headers.
+
+### Testing
+
+- Added **18 security regression tests** in `backend/tests/audit/`, one per
+  verified defect. **13 of 18 fail against the pre-fix v1.1.0 tree**, confirmed
+  by reverting `backend/app` to `0b50be2`; the remaining 5 assert behaviour the
+  fixes must preserve (permitted redirects still followed, same-origin
+  credentials retained, credential-keyed limiting kept on non-auth endpoints,
+  `/node-types` still public).
+- Backend **1576 → 1594** passing on SQLite; **1602 passing on PostgreSQL 16.2**
+  (executed this cycle via `pgserver`, closing a gap the audit had recorded as
+  unverified). Frontend 179 passing, typecheck clean, production build clean.
+- Relaxed the M10 changelog guard to permit a leading `[Unreleased]` section
+  while still pinning the newest *version* heading to the shipped version.
+- Corrected published totals in `README.md` and `TEST_COVERAGE.md`; figures not
+  re-executed in a given cycle are now explicitly labelled rather than restated
+  as fresh.
+
 ## [1.1.0] - 2026-07-28 — General Availability
 
 ### Milestone 10 — v1.1.0 release and final production certification

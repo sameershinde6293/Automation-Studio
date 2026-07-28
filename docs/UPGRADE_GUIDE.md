@@ -1,6 +1,6 @@
 # Upgrade Guide
 
-Creator OS v1.1.0
+Creator OS v1.1.1
 
 The order below is not arbitrary: **schema first, then code.** A new binary
 against an old schema fails on the first query; an old binary against a new

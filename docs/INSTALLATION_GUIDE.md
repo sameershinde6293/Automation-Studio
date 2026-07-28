@@ -1,6 +1,6 @@
 # Installation Guide
 
-Creator OS v1.1.0 · last verified 2026-07-28
+Creator OS v1.1.1 · last verified 2026-07-28
 
 Every command below was executed from a clean clone on Linux with Python 3.11.2
 and Node 22.22.3 during the M7 release audit. Where something is unverified, it

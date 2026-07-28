@@ -1,7 +1,7 @@
 # Project Status
 
 **Current phase:** General Availability
-**Version:** 1.1.0
+**Version:** 1.1.1
 **Last updated:** 2026-07-28 (M10)
 
 ## Milestone progress

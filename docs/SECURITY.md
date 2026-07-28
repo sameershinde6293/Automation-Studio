@@ -110,6 +110,16 @@ Authorization is applied **at router level** via
 
 Triggering or cancelling a workflow run additionally requires `execute`.
 
+`/api/system/info`, `/metrics`, `/events` and `/scheduler/jobs` require `read`.
+They were public until the post-v1.1.0 audit (AUDIT-3), which found they
+disclosed the OS build, the Python patch version, **which risky executors are
+enabled**, the PID, memory use and live workflow/node names to callers with no
+credential. They had been explicitly allowlisted in the route-coverage test, so
+the check designed to catch unprotected endpoints was told to skip them. Only
+`/api/system/node-types` and `/node-schemas` remain public: a static
+description of build capabilities that the editor needs before a user is
+known.
+
 This is deliberate and fails closed. The M5 self-audit found that annotating
 endpoints individually had left **7 of 9 routers entirely unprotected** — an
 endpoint without a decorator is silently public and nothing flags it. A
@@ -146,8 +156,11 @@ not for isolating customers from one another.
 | Trusted hosts | `["*"]` (off) | Set `ALLOWED_HOSTS` in production to block host-header injection and DNS rebinding |
 | CSRF | on | Double-submit cookie. Header-authenticated requests bypass it, correctly: `Authorization`/`X-API-Key` are not attached automatically by a browser and so are not forgeable cross-site |
 | Rate limiting | 300/min | Keyed by credential first, then address. `X-Forwarded-For` is honoured **only** when `TRUST_PROXY_HEADERS=true`, so a client cannot spoof its identity to evade the limiter |
+| Auth-endpoint keying | address | Credential endpoints bucket by **network address**, never by the presented credential. Keying on the credential let an attacker mint a fresh bucket per guess with a junk `Authorization` header, bypassing the login limiter entirely (AUDIT-2) |
 | Auth rate limit | 10/min | Separate, stricter budget for `/api/auth/login` and `/register` |
 | Body size | 25 MiB | `413` before the body is read |
+| Outbound redirects | validated | Every redirect hop is re-checked by `validate_outbound_url`. Delegating to httpx's `follow_redirects` validated only the first URL and was a working SSRF bypass (AUDIT-1) |
+| Redirect credentials | stripped cross-origin | `Authorization`, `Cookie` and `Proxy-Authorization` are removed when a redirect leaves the origin, and preserved on same-origin hops and HTTP→HTTPS upgrades — matching httpx. Following redirects by hand had dropped this protection (AUDIT-1a) |
 | Error envelope | — | Internal exception text is never returned; clients get a stable code plus a request id |
 
 ### Known weakness

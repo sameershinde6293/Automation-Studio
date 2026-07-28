@@ -157,6 +157,132 @@ def _is_blocked_ip(ip: ipaddress._BaseAddress) -> bool:
     )
 
 
+#: HTTP status codes that carry a ``Location`` redirect.
+REDIRECT_STATUS_CODES = frozenset({301, 302, 303, 307, 308})
+
+
+# httpx implements the origin comparison used for credential stripping in a
+# private module. Reuse it when present so the semantics match the library
+# exactly, and fall back to an equivalent local implementation if a future
+# httpx moves it -- an ImportError here must not break outbound HTTP.
+try:  # pragma: no cover - depends on the installed httpx version
+    from httpx._client import _is_https_redirect, _same_origin
+except ImportError:  # pragma: no cover - fallback for future httpx versions
+    def _default_port(url: "httpx.URL") -> int:
+        return url.port if url.port is not None else (443 if url.scheme == "https" else 80)
+
+    def _same_origin(url: "httpx.URL", other: "httpx.URL") -> bool:
+        return (
+            url.scheme == other.scheme
+            and url.host == other.host
+            and _default_port(url) == _default_port(other)
+        )
+
+    def _is_https_redirect(url: "httpx.URL", location: "httpx.URL") -> bool:
+        if url.host != location.host:
+            return False
+        return (
+            url.scheme == "http"
+            and _default_port(url) == 80
+            and location.scheme == "https"
+            and _default_port(location) == 443
+        )
+
+
+#: Request headers that must not survive a cross-origin redirect. Forwarding
+#: these to whatever host a redirect names hands that host the caller's
+#: credentials, which is exactly what httpx's own redirect handling prevents.
+_CREDENTIAL_HEADERS = ("authorization", "cookie", "proxy-authorization")
+
+
+def _strip_credentials_for_cross_origin(
+    headers: Dict[str, str], from_url: str, to_url: str
+) -> Dict[str, str]:
+    """Drop credential headers when a redirect leaves the original origin.
+
+    Mirrors ``httpx._client.Client._redirect_headers``: credentials survive a
+    same-origin hop and a plain HTTP→HTTPS upgrade of the same host, and are
+    removed otherwise.
+    """
+    source = httpx.URL(from_url)
+    target = httpx.URL(to_url)
+    if _same_origin(target, source) or _is_https_redirect(source, target):
+        return headers
+    return {
+        name: value
+        for name, value in headers.items()
+        if name.lower() not in _CREDENTIAL_HEADERS
+    }
+
+
+async def request_following_validated_redirects(
+    client: Any,
+    method: str,
+    url: str,
+    *,
+    max_redirects: int = 5,
+    **request_kwargs: Any,
+) -> Any:
+    """Perform an HTTP request, re-validating every redirect hop for SSRF.
+
+    ``httpx``'s own ``follow_redirects=True`` is unsafe here: only the *initial*
+    URL passes through :func:`validate_outbound_url`, so a public host that
+    answers ``302 Location: http://169.254.169.254/...`` walks the request
+    straight past the guard. Redirects are therefore followed manually, and
+    each hop is validated exactly like the first.
+
+    Following redirects by hand means the safety behaviour httpx would other-
+    wise provide has to be reproduced here, not just the mechanics:
+
+    * ``Authorization``/``Cookie`` are **stripped on a cross-origin hop**, so a
+      redirect cannot be used to harvest the caller's credentials.
+    * 303 (and 301/302 on an unsafe method) downgrades to ``GET`` and the body
+      is dropped.
+    * The redirect budget is bounded.
+
+    The caller's client must be constructed with ``follow_redirects=False``.
+    """
+    current_method = method
+    current_url = url
+    kwargs = dict(request_kwargs)
+
+    for _ in range(max_redirects + 1):
+        response = await client.request(current_method, url=current_url, **kwargs)
+        if response.status_code not in REDIRECT_STATUS_CODES:
+            return response
+
+        location = response.headers.get("location")
+        if not location:
+            return response
+
+        # Relative targets resolve against the current URL, matching httpx.
+        next_url = str(httpx.URL(str(response.url)).join(location))
+        # The whole point of this function: the hop is validated too.
+        validate_outbound_url(next_url)
+
+        # Credentials must not follow the request to a different origin.
+        if isinstance(kwargs.get("headers"), dict):
+            kwargs["headers"] = _strip_credentials_for_cross_origin(
+                kwargs["headers"], current_url, next_url
+            )
+
+        # 303 always becomes GET; 301/302 do so for anything but HEAD, which is
+        # what every mainstream client does in practice.
+        if response.status_code == 303 or (
+            response.status_code in (301, 302) and current_method not in ("GET", "HEAD")
+        ):
+            current_method = "GET"
+            kwargs.pop("json", None)
+            kwargs.pop("content", None)
+            kwargs.pop("data", None)
+        current_url = next_url
+
+    raise SecurityError(
+        f"HTTP request exceeded {max_redirects} redirects.",
+        details={"url": url},
+    )
+
+
 def validate_outbound_url(url: str, *, allow_private: Optional[bool] = None,
                           allowed_hosts: Optional[List[str]] = None) -> str:
     """Validate a URL for outbound requests, raising on SSRF risk."""
@@ -473,18 +599,21 @@ class HttpRequestExecutor(BaseNodeExecutor):
         timeout = max(1.0, min(timeout, 300.0))
         max_bytes = settings.HTTP_EXECUTOR_MAX_RESPONSE_BYTES
 
-        request_kwargs: Dict[str, Any] = {"url": url, "headers": headers}
+        request_kwargs: Dict[str, Any] = {"headers": headers}
         if method in {"POST", "PUT", "PATCH"} and config.get("body") is not None:
             request_kwargs["json"] = render_value(config.get("body"), context)
 
         try:
             async with httpx.AsyncClient(
                 timeout=timeout,
-                follow_redirects=True,
-                max_redirects=5,
+                # Redirects are followed manually so each hop is SSRF-validated;
+                # httpx's own follow_redirects would bypass the guard entirely.
+                follow_redirects=False,
                 limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
             ) as client:
-                response = await client.request(method, **request_kwargs)
+                response = await request_following_validated_redirects(
+                    client, method, url, max_redirects=5, **request_kwargs
+                )
                 content = response.content or b""
                 truncated = len(content) > max_bytes
                 if truncated:

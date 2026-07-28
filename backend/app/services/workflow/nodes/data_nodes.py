@@ -33,7 +33,7 @@ import json
 import math
 import re
 import shutil
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from app.core.errors import SecurityError, ValidationError
 from app.infrastructure.config.settings import settings
@@ -601,13 +601,25 @@ class EmailNode(RuntimeNodeExecutor):
         body: str,
         html: bool,
         cc: List[str],
+        to: Optional[List[str]] = None,
     ) -> None:
+        """Send one message.
+
+        ``to``/``cc`` are the **visible headers**; ``recipients`` is the
+        **SMTP envelope** (to + cc + bcc). Keeping the two separate is what
+        makes bcc blind, and is why the envelope is passed to ``send_message``
+        explicitly rather than left to be derived from the headers.
+        """
         import smtplib
         from email.message import EmailMessage
 
+        # Fall back to the envelope only when no explicit To list is supplied,
+        # preserving the previous signature for any direct caller.
+        visible_to = list(to) if to is not None else list(recipients)
+
         message = EmailMessage()
         message["From"] = sender
-        message["To"] = ", ".join(recipients)
+        message["To"] = ", ".join(visible_to)
         if cc:
             message["Cc"] = ", ".join(cc)
         message["Subject"] = subject
@@ -626,7 +638,12 @@ class EmailNode(RuntimeNodeExecutor):
                 smtp.starttls()
             if settings.SMTP_USERNAME:
                 smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
-            smtp.send_message(message)
+            # The envelope recipients are passed explicitly. Without this,
+            # smtplib derives them from the To/Cc/Bcc *headers*, and since a
+            # Bcc header is deliberately never written (that is what makes it
+            # blind), every bcc address was silently dropped while the node
+            # still reported it in `recipients` and returned sent=True.
+            smtp.send_message(message, from_addr=sender, to_addrs=recipients)
 
     async def run(self, node, context, config) -> Any:
         to = self._normalise_addresses(config.get("to"), context, "to")
@@ -666,6 +683,7 @@ class EmailNode(RuntimeNodeExecutor):
                 self._send_sync,
                 sender=sender,
                 recipients=recipients,
+                to=to,
                 subject=subject,
                 body=body,
                 html=html,

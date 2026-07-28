@@ -37,13 +37,17 @@ PUBLIC_PATHS = {
     "/api/auth/logout",
     "/api/auth/register",
     "/api/auth/me",
-    # System introspection used by the editor to render its palette.
-    "/api/system/info",
-    "/api/system/metrics",
+    # The node catalog only, which the editor needs to render its palette
+    # before a workflow is opened. It is a static description of the build's
+    # capabilities and contains no deployment or execution data.
+    #
+    # /api/system/info, /metrics, /events and /scheduler/jobs were public here
+    # until the post-v1.1.0 audit (AUDIT-3): they disclosed the OS build, the
+    # Python patch version, which risky executors are enabled, the PID, memory
+    # use and live workflow/node names to anonymous callers. They now require
+    # `read`.
     "/api/system/node-types",
     "/api/system/node-schemas",
-    "/api/system/events",
-    "/api/system/scheduler/jobs",
 }
 
 AUTH_DEPENDENCY_NAMES = {

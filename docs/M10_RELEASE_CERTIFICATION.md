@@ -388,16 +388,25 @@ against the same PostgreSQL 16.2.
 ### 9.2 CI — never executed
 
 `ci/github-actions-ci.yml` defines 7 jobs. GitHub only runs workflows from
-`.github/workflows/`, and this automation account cannot create that path:
+`.github/workflows/`, and this automation account cannot create that path.
+
+**This was re-tested in M10 rather than inherited from the M8 report.** The
+file was copied to `.github/workflows/ci.yml`, committed and pushed. The push
+was rejected:
 
 ```
-! [remote rejected] refusing to allow a GitHub App to create or update
-  workflow .github/workflows/ci.yml without `workflows` permission
+$ cp ci/github-actions-ci.yml .github/workflows/ci.yml && git commit && git push
+ ! [remote rejected] arena/019fa817-automation-studio -> arena/019fa817-automation-studio
+   (refusing to allow a GitHub App to create or update workflow
+    `.github/workflows/ci.yml` without `workflows` permission)
+error: failed to push some refs
 ```
 
+The commit was then reverted so the branch matches what the remote will accept.
 No `.github` directory exists in the repository. **CI has never run**, and no
-green check has ever been produced. `./scripts/ci-local.sh` runs the equivalent
-checks locally and was used for this certification.
+green check has ever been produced on any commit in this project's history.
+`./scripts/ci-local.sh` runs the equivalent checks locally and was used for
+this certification.
 
 ### 9.3 Other unexecuted paths
 

@@ -38,7 +38,7 @@ FROM python:3.11-slim AS runtime
 
 LABEL org.opencontainers.image.title="Creator OS Backend" \
       org.opencontainers.image.description="Visual workflow automation with AI runtime" \
-      org.opencontainers.image.version="1.1.0" \
+      org.opencontainers.image.version="1.1.1" \
       org.opencontainers.image.source="https://github.com/sameershinde6293/Automation-Studio" \
       org.opencontainers.image.licenses="MIT"
 

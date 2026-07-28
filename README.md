@@ -8,7 +8,7 @@ streaming and a full execution history.
 Runs two ways from one codebase: a **local desktop app** (SQLite, zero
 configuration) or a **multi-user server** (PostgreSQL, JWT auth, RBAC, metrics).
 
-**Version 1.1.0** · General Availability · [Release notes](docs/RELEASE_NOTES.md) · [Known issues](docs/KNOWN_ISSUES.md) · [M10 release certification](docs/M10_RELEASE_CERTIFICATION.md)
+**Version 1.1.1** · Security patch release · [Release notes](docs/RELEASE_NOTES.md) · [Known issues](docs/KNOWN_ISSUES.md) · [Post-v1.1.0 security audit](docs/POST_V110_AUDIT.md)
 
 ---
 
@@ -116,8 +116,8 @@ forward from an earlier milestone:
 
 | | |
 | --- | --- |
-| Backend tests | **1591 passed / 10 skipped** (SQLite, re-run in the post-v1.1.0 audit) · 1584 passed / 2 skipped (PostgreSQL 16.2, M10 figure — not re-run) · 0 failed |
-| PostgreSQL migration suite | 8/8 executed against real PostgreSQL 16.2 (M10 figure — not re-run in the post-v1.1.0 audit) |
+| Backend tests | **1594 passed / 10 skipped** (SQLite) · **1602 passed / 2 skipped** (PostgreSQL 16.2, executed this cycle) · 0 failed |
+| PostgreSQL migration suite | **8/8 executed** against real PostgreSQL 16.2 |
 | Frontend tests | **179 passed** (13 files) |
 | Typecheck / production build | clean · 343.85 kB (109.08 kB gzip), 1735 modules |
 | Migrations | upgrade → downgrade to base → re-upgrade on PostgreSQL: **0 orphaned enum types**, 19 tables restored |
@@ -218,7 +218,7 @@ backend/           FastAPI + SQLAlchemy 2 + Alembic
   app/domain/      ORM models and repositories
   app/services/    Workflow engine, AI orchestration, media, security, plugins
   app/infrastructure/  Config, database, logging, metrics, scheduler
-  tests/           1591 tests (1584 measured with PostgreSQL enabled at M10)
+  tests/           1594 tests (1602 with PostgreSQL enabled)
 
 examples/          Executable example workflows
 scripts/           Build, local CI, smoke tests, load test, example verifier

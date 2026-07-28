@@ -20,13 +20,13 @@ Where something could not be executed in this environment it is recorded as
 
 | | |
 | --- | --- |
-| Total findings | **17** |
+| Total findings | **18** |
 | Critical | 1 |
-| High | 4 |
+| High | 5 |
 | Medium | 5 |
 | Low | 4 |
 | Informational | 3 |
-| **Fixed in this audit** | **5** (all Critical + all High) |
+| **Fixed** | **6** (all Critical + all High, incl. one regression found in stabilization) |
 | Left as recommendations | 12 (Medium/Low/Informational) |
 
 The v1.1.0 GA certification reported "no release blockers" and 94% production
@@ -80,6 +80,37 @@ finding A-3 (duplicated node).
 on **every hop**, resolves relative `Location` headers, and applies standard
 303/301/302 method rewriting. Post-fix, the same redirect raises `SecurityError`
 while a permitted redirect still returns `200 'FINAL-OK'`.
+
+### AUDIT-1a · High · Credentials leaked across origins by the AUDIT-1 fix
+
+**File:** `app/services/workflow/executors.py`
+**Found during post-audit stabilization, before release.**
+
+Re-reviewing the AUDIT-1 fix against httpx's own redirect implementation
+(`Client._redirect_headers`) showed that httpx **strips `Authorization` when a
+redirect leaves the origin**, except on a plain HTTP→HTTPS upgrade of the same
+host. Following redirects manually silently dropped that protection: the first
+version of the loop forwarded every header to the redirect target.
+
+Reproduced with two distinct local origins — origin A redirects to origin B,
+and B records what it received:
+
+```
+Authorization forwarded to 3rd-party host: Bearer SUPER-SECRET-TOKEN
+Cookie forwarded to 3rd-party host       : session=abc
+LEAK: True
+```
+
+This is the classic hazard of hand-rolling redirect handling: the mechanics are
+easy, the safety behaviour is what you lose. It is recorded as a separate
+finding rather than folded into AUDIT-1 because it was **introduced by the fix**,
+not present in v1.1.0 — being candid about that is the point of this section.
+
+**Fixed.** Credential headers (`Authorization`, `Cookie`,
+`Proxy-Authorization`) are stripped on cross-origin hops, reusing httpx's own
+`_same_origin`/`_is_https_redirect` where available with an equivalent local
+fallback if a future httpx moves them. Post-fix both headers arrive as `None`
+cross-origin, while a same-origin redirect still preserves `Bearer KEEP-ME`.
 
 ### AUDIT-2 · High · Login rate limiter evaded by rotating a header
 
@@ -339,12 +370,14 @@ instance", which the project states.
 
 | Check | Result |
 | --- | --- |
-| Backend suite, post-fix | **1591 passed, 10 skipped, 0 failed** |
+| Backend suite, SQLite | **1594 passed, 10 skipped, 0 failed** |
+| Backend suite, PostgreSQL 16.2 | **1602 passed, 2 skipped, 0 failed** |
 | Frontend suite, post-fix | **179 passed** (13 files) |
 | Frontend `tsc --noEmit` | clean |
-| New regression tests | 15, in `backend/tests/audit/` |
-| New tests fail on pre-fix code | **Confirmed** — reverted `backend/app`, 12 of 15 fail (the other 3 assert behaviour preserved by the fix) |
-| Behaviour preserved | Permitted redirects still followed; credential-keyed limiting retained on non-auth endpoints; `/node-types` still public; email without bcc unchanged |
+| Production build | clean — 343.85 kB (109.08 kB gzip), 1735 modules |
+| New regression tests | 18, in `backend/tests/audit/` |
+| New tests fail on pre-fix code | **Confirmed** — `backend/app` reverted to `0b50be2`: **13 of 18 fail**. The other 5 assert behaviour the fixes must preserve |
+| Behaviour preserved | Permitted redirects still followed; same-origin credentials retained; `TRUST_PROXY_HEADERS` semantics unchanged on auth paths; credential-keyed limiting retained on non-auth endpoints; `/node-types` still public; authenticated `viewer` gets 200 on all four re-protected endpoints; email without bcc unchanged; AI fallback chain unchanged with no key |
 
 No feature was added and no working code was refactored, per the audit's remit.
 
@@ -355,8 +388,10 @@ No feature was added and no working code was refactored, per the audit's remit.
 Stated plainly, because omitting it would be the same failure this audit found
 in its predecessors:
 
-- **PostgreSQL** — no server available here. The 1584-test PostgreSQL figure is
-  M10's, carried forward, not re-run.
+- ~~**PostgreSQL**~~ — **now executed.** The `pgserver` wheel provides a real
+  server; the full suite runs **1602 passed, 2 skipped, 0 failed** against
+  PostgreSQL 16.2. This gap, recorded as unverified in the first audit pass,
+  is closed.
 - **Docker** — no container runtime, no registry access. Sixth consecutive
   milestone unverified.
 - **CI** — has still never executed on any commit.

@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Creator OS v1.1.0
+Creator OS v1.1.1
 
 Symptom-first. Every entry marked **(verified in M7)** was actually reproduced
 and resolved during the release audit, not written from theory.

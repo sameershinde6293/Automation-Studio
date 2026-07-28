@@ -1,22 +1,36 @@
 # Known Issues
 
-## Post-v1.1.0 independent certification audit — current
+## v1.1.1 — security patch release (current)
 
 An independent audit re-verified the v1.1.0 tree from scratch, assuming no
 previous milestone was correct. It found **five Critical/High defects that
-every prior milestone had missed**, all of which are now fixed and covered by
-regression tests in `backend/tests/audit/` (each confirmed to fail against the
-pre-fix tree). See `docs/POST_V110_AUDIT.md` for full evidence.
+every prior milestone had missed**; post-audit stabilization found **one more
+High regression introduced by the first fix** and corrected it before release.
+All six are fixed and covered by 18 regression tests in `backend/tests/audit/`
+(13 confirmed to fail against the pre-fix tree). See
+`docs/POST_V110_AUDIT.md` for full evidence.
 
 ### Fixed by this audit
 
 | ID | Severity | Defect |
 | --- | --- | --- |
 | AUDIT-1 | **Critical** | **SSRF guard bypassed by an HTTP redirect.** `validate_outbound_url` was applied only to the initial URL, then `httpx` was told `follow_redirects=True`. A public host answering `302 Location: http://169.254.169.254/...` reached cloud metadata. Reproduced end to end |
+| AUDIT-1a | **High** | **Credential headers leaked across origins by the AUDIT-1 fix.** Following redirects manually dropped the `Authorization`/`Cookie` stripping that httpx performs on a cross-origin hop, handing the caller's bearer token to whatever host a redirect named. Found in stabilization review, before release; reproduced with two local origins |
 | AUDIT-2 | **High** | **Login rate limiter evaded by rotating a junk `Authorization` header.** The limiter keyed on the credential, so each guess got a fresh bucket. Measured: 15/15 attempts admitted against a 3/min budget |
 | AUDIT-3 | **High** | **`/api/system/{info,metrics,events,scheduler/jobs}` readable anonymously** with `AUTH_ENABLED=true`, disclosing OS build, Python patch version, which risky executors are enabled, the PID, memory use and live workflow/node names |
 | AUDIT-4 | **High** | **Email node put bcc addresses in the visible `To:` header** and, because `send_message` derived the envelope from headers, bcc was simultaneously never delivered. Both halves verified against a real SMTP server |
 | AUDIT-5 | **High** | **`OPENAI_API_KEY` from `.env` never reached the OpenAI provider** (it read `os.environ` directly, bypassing pydantic-settings), and `OPENAI_BASE_URL`/`OLLAMA_BASE_URL` were hardcoded and had no effect at all |
+
+**Behaviour changes in v1.1.1.** Two fixes are deliberately stricter and may
+affect existing integrations: `/api/system/{info,metrics,events,scheduler/jobs}`
+now return `401` to unauthenticated callers (use `/health*` and `/metrics` for
+monitoring), and `Authorization`/`Cookie` headers on an HTTP node are no longer
+forwarded across a cross-origin redirect. Both are documented in
+`docs/RELEASE_NOTES.md`.
+
+**Closed in this cycle:** the PostgreSQL suite, previously recorded as never
+re-executed, now runs against a real PostgreSQL 16.2 server via the `pgserver`
+wheel — **1602 passed, 2 skipped, 0 failed**.
 
 ### Open recommendations from this audit (not fixed — Medium/Low)
 

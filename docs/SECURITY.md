@@ -160,6 +160,7 @@ not for isolating customers from one another.
 | Auth rate limit | 10/min | Separate, stricter budget for `/api/auth/login` and `/register` |
 | Body size | 25 MiB | `413` before the body is read |
 | Outbound redirects | validated | Every redirect hop is re-checked by `validate_outbound_url`. Delegating to httpx's `follow_redirects` validated only the first URL and was a working SSRF bypass (AUDIT-1) |
+| Redirect credentials | stripped cross-origin | `Authorization`, `Cookie` and `Proxy-Authorization` are removed when a redirect leaves the origin, and preserved on same-origin hops and HTTP→HTTPS upgrades — matching httpx. Following redirects by hand had dropped this protection (AUDIT-1a) |
 | Error envelope | — | Internal exception text is never returned; clients get a stable code plus a request id |
 
 ### Known weakness

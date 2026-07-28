@@ -64,6 +64,190 @@ def redirect_server():
         server.server_close()
 
 
+class _CrossOriginRedirectHandler(http.server.BaseHTTPRequestHandler):
+    """Origin A: bounces the caller to a *different* origin."""
+
+    redirect_target = ""
+
+    def do_GET(self):  # noqa: N802 - BaseHTTPRequestHandler API
+        self.send_response(302)
+        self.send_header("Location", self.redirect_target)
+        self.end_headers()
+
+    def log_message(self, *args):  # pragma: no cover - silence test output
+        pass
+
+
+class _CredentialCaptureHandler(http.server.BaseHTTPRequestHandler):
+    """Origin B: records whatever credential headers reached it."""
+
+    captured: dict = {}
+
+    def do_GET(self):  # noqa: N802 - BaseHTTPRequestHandler API
+        type(self).captured = {
+            "authorization": self.headers.get("Authorization"),
+            "cookie": self.headers.get("Cookie"),
+        }
+        body = b"ok"
+        self.send_response(200)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *args):  # pragma: no cover - silence test output
+        pass
+
+
+class _SameOriginRedirectHandler(http.server.BaseHTTPRequestHandler):
+    """One origin that redirects to itself and records the final headers."""
+
+    captured: dict = {}
+
+    def do_GET(self):  # noqa: N802 - BaseHTTPRequestHandler API
+        if self.path == "/go":
+            self.send_response(302)
+            self.send_header("Location", "/dest")
+            self.end_headers()
+            return
+        type(self).captured = {"authorization": self.headers.get("Authorization")}
+        body = b"ok"
+        self.send_response(200)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *args):  # pragma: no cover - silence test output
+        pass
+
+
+@pytest.fixture()
+def cross_origin_servers():
+    """Two distinct origins, so a redirect between them is cross-origin."""
+    capture = socketserver.TCPServer(("127.0.0.1", 0), _CredentialCaptureHandler)
+    capture_port = capture.server_address[1]
+    _CrossOriginRedirectHandler.redirect_target = (
+        f"http://127.0.0.1:{capture_port}/steal"
+    )
+    _CredentialCaptureHandler.captured = {}
+    redirector = socketserver.TCPServer(("127.0.0.1", 0), _CrossOriginRedirectHandler)
+    redirect_port = redirector.server_address[1]
+
+    threads = [
+        threading.Thread(target=s.serve_forever, daemon=True)
+        for s in (capture, redirector)
+    ]
+    for thread in threads:
+        thread.start()
+    try:
+        yield redirect_port
+    finally:
+        for server in (capture, redirector):
+            server.shutdown()
+            server.server_close()
+
+
+@pytest.fixture()
+def same_origin_server():
+    _SameOriginRedirectHandler.captured = {}
+    server = socketserver.TCPServer(("127.0.0.1", 0), _SameOriginRedirectHandler)
+    port = server.server_address[1]
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        yield port
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+class TestRedirectCredentialHandling:
+    """AUDIT-1a: following redirects by hand must not leak credentials.
+
+    Regression found while re-reviewing the AUDIT-1 fix during post-audit
+    stabilization. ``httpx`` strips ``Authorization``/``Cookie`` when a
+    redirect leaves the original origin; the first version of the manual
+    redirect loop forwarded every header, which handed the caller's bearer
+    token to whatever host the redirect named.
+    """
+
+    def test_credentials_are_stripped_on_cross_origin_redirect(
+        self, cross_origin_servers, monkeypatch
+    ):
+        from app.infrastructure.config.settings import settings
+        from app.services.workflow.nodes.network_nodes import _perform_request
+
+        monkeypatch.setattr(
+            settings, "HTTP_EXECUTOR_ALLOW_PRIVATE_NETWORKS", True, raising=False
+        )
+        monkeypatch.setattr(settings, "HTTP_EXECUTOR_ALLOWED_HOSTS", [], raising=False)
+
+        async def run():
+            return await _perform_request(
+                method="GET",
+                url=f"http://127.0.0.1:{cross_origin_servers}/go",
+                headers={
+                    "Authorization": "Bearer SUPER-SECRET-TOKEN",
+                    "Cookie": "session=abc",
+                },
+                body=None,
+                timeout=5,
+                max_bytes=10_000,
+            )
+
+        asyncio.run(run())
+
+        captured = _CredentialCaptureHandler.captured
+        assert captured.get("authorization") is None, (
+            "Authorization header was forwarded across origins by a redirect"
+        )
+        assert captured.get("cookie") is None, (
+            "Cookie header was forwarded across origins by a redirect"
+        )
+
+    def test_credentials_survive_a_same_origin_redirect(
+        self, same_origin_server, monkeypatch
+    ):
+        """Do not over-correct: same-origin hops must keep working."""
+        from app.infrastructure.config.settings import settings
+        from app.services.workflow.nodes.network_nodes import _perform_request
+
+        monkeypatch.setattr(
+            settings, "HTTP_EXECUTOR_ALLOW_PRIVATE_NETWORKS", True, raising=False
+        )
+        monkeypatch.setattr(settings, "HTTP_EXECUTOR_ALLOWED_HOSTS", [], raising=False)
+
+        async def run():
+            return await _perform_request(
+                method="GET",
+                url=f"http://127.0.0.1:{same_origin_server}/go",
+                headers={"Authorization": "Bearer KEEP-ME"},
+                body=None,
+                timeout=5,
+                max_bytes=10_000,
+            )
+
+        result = asyncio.run(run())
+        assert result["status_code"] == 200
+        assert (
+            _SameOriginRedirectHandler.captured.get("authorization")
+            == "Bearer KEEP-ME"
+        )
+
+    def test_origin_comparison_helpers_behave_like_httpx(self):
+        """The fallback used if httpx moves its private helpers must match."""
+        import httpx
+
+        from app.services.workflow.executors import (
+            _is_https_redirect,
+            _same_origin,
+        )
+
+        assert _same_origin(httpx.URL("http://a:80/x"), httpx.URL("http://a/y"))
+        assert not _same_origin(httpx.URL("http://a/x"), httpx.URL("http://b/y"))
+        assert not _same_origin(httpx.URL("http://a/x"), httpx.URL("https://a/y"))
+        assert _is_https_redirect(httpx.URL("http://a/x"), httpx.URL("https://a/y"))
+        assert not _is_https_redirect(httpx.URL("http://a/x"), httpx.URL("https://b/y"))
+
+
 class TestSSRFRedirectIsRevalidated:
     """AUDIT-1: every redirect hop must pass back through the SSRF guard."""
 

@@ -68,8 +68,8 @@ file pins, and it un-skipped 8 migration tests that had been skipped since M6.
 
 - **Staging on real PostgreSQL 16.2** — production settings, auth on, docs off,
   JSON logs, migrations applied, bootstrap admin created then cleared.
-- **Long run** — 31 minutes continuous under load: 312 workflow executions,
-  0 failures, 0 non-200 probes, RSS 91→98 MB, CPU 1.0% of one core, FDs and
+- **Long run** — 48 minutes continuous under load: 408 workflow executions,
+  0 failures, 0 non-200 probes, RSS 91→100 MB, CPU 1.0% of one core, FDs and
   threads bounded, no `idle in transaction` leak.
 - **Performance** — `/health` p95 2.9 ms; workflow execution p95 68 ms;
   100 concurrent readers with 0 errors; startup 1.1 s; graceful shutdown 188 ms
@@ -88,7 +88,7 @@ file pins, and it un-skipped 8 migration tests that had been skipped since M6.
 #### Still not validated
 
 Docker runtime remains **unexecuted** — no container runtime and every registry
-unreachable. The long run was 31 minutes, not 24 hours. Multi-replica operation
+unreachable. The long run was 48 minutes, not 24 hours. Multi-replica operation
 is untested. See `M9_VALIDATION_REPORT.md` §11.
 
 ## [1.1.0-rc1] - 2026-07-27 — Release Candidate 1

@@ -223,23 +223,23 @@ queue — for the whole window.
 
 | Metric | Result |
 | --- | --- |
-| Duration | **31 minutes** continuous (see limitation below) |
-| Samples | 63 process/DB samples, 93 workload cycles |
-| Workflow executions | **312 rows**, all terminal |
+| Duration | **48 minutes** continuous (see limitation below) |
+| Samples | 96 process/DB samples, 141 workload cycles |
+| Workflow executions | **408 rows**, all terminal |
 | Workflow failures | **0 sync, 0 queued** |
 | `/health/live` non-200 | **0** |
 | `/health/ready` non-200 | **0** |
-| RSS | 91.2 MB → 98.1 MB (peak HWM 98.1 MB) |
-| CPU | 18.5 s over 1862 s = **1.0 % of one core** |
-| Threads / FDs | 3 → 6 / 14 → 15 (bounded, no leak) |
-| DB size | 8.7 MB → 10.7 MB (312 executions of real data) |
-| Log growth | 2.5 KB → 255 KB |
+| RSS | 91.2 MB → 100.1 MB (peak HWM 100.1 MB) |
+| CPU | **1.0 % of one core** sustained |
+| Threads / FDs | 3 → 5 / 14 → 15 (bounded, no leak) |
+| DB size | 8.7 MB → 11.1 MB (408 executions of real data) |
+| Log growth | 2.5 KB → 387 KB |
 | `/health/live` latency | median 3.99 ms, max 13.55 ms |
 | `/health/ready` latency | median 4.11 ms, max 19.48 ms |
 | Sync execution | median 58.4 ms, max 89.2 ms |
 | Queued completion | median 280.4 ms, max 306.0 ms |
 
-**Memory.** +6.9 MB over 31 minutes while inserting 312 executions is
+**Memory.** +8.9 MB over 48 minutes while inserting 408 executions is
 consistent with working-set growth (SQLAlchemy identity maps, the in-memory
 error-aggregation ring buffer sized at 500, Python arena fragmentation) rather
 than an unbounded leak: RSS tracked database growth and then flattened, and FDs
@@ -252,12 +252,12 @@ that moment, not to a leak: a controlled re-test (480 requests across 60
 threads) settled to a steady 25 connections with **`idle_in_txn = 0`**, and it
 stayed there across 30 s of observation.
 
-> **Limitation — this is 31 minutes, not 24 hours.** The milestone asks for
+> **Limitation — this is 48 minutes, not 24 hours.** The milestone asks for
 > "24-hour stability (or as long as the environment allows)". This sandbox does
 > not persist across the session, and an earlier reset in this very session
 > destroyed a running long-run test. Slow leaks (a few MB/hour), log rotation
 > at the 10 MB boundary, `pool_recycle` at 1800 s and scheduler drift over many
-> cycles are **not** covered by a 31-minute window. Treat the first production
+> cycles are **not** covered by a 48-minute window. Treat the first production
 > soak as the real 24-hour test.
 
 ---
@@ -523,7 +523,7 @@ Stated honestly; none of these are claimed as validated.
 
 1. **Docker runtime has never been executed** — no runtime, no reachable
    registry. The single largest gap.
-2. **Long run was 31 minutes, not 24 hours.** Slow leaks, log rotation at the
+2. **Long run was 48 minutes, not 24 hours.** Slow leaks, log rotation at the
    10 MB boundary, `pool_recycle` at 1800 s and multi-hour scheduler drift are
    unproven.
 3. **Single-node only.** No multi-replica run, no PgBouncer, no load balancer.
@@ -561,7 +561,7 @@ Raised two points for real, evidence-backed reasons:
 Not higher, and deliberately **not above 98 %**, because the milestone's own
 rule is explicit: no deployment path may be claimed without execution. The
 Docker path — which is the documented production deployment path — has still
-never been run. Multi-replica operation is untested, and 31 minutes is not a
+never been run. Multi-replica operation is untested, and 48 minutes is not a
 24-hour soak.
 
 To reach ≥98 %, someone must run, on a host with Docker:

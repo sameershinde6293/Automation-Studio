@@ -107,7 +107,7 @@ running against **real PostgreSQL 16.2**:
 | Typecheck / production build | clean · 343.85 kB (109.08 kB gzip) |
 | Migrations | upgrade → downgrade → re-upgrade verified (SQLite + PostgreSQL) |
 | Examples | **4/4 executed** against live backend (with SSL_CERT_FILE workaround for TLS interception) |
-| Long run | **31 min** continuous under load: 312 executions, **0 failures**, 0 non-200 probes, RSS 91→98 MB, CPU 1.0% of one core |
+| Long run | **48 min** continuous under load: 408 executions, **0 failures**, 0 non-200 probes, RSS 91→100 MB, CPU 1.0% of one core |
 | Performance | `/health` p95 2.9 ms · workflow exec p95 68 ms · 100 concurrent readers, 0 errors · startup 1.1 s · shutdown 188 ms |
 | Failure testing | DB loss → 503 ready / 200 live, recovers in 1 s without restart · SIGKILL and SIGTERM leave no orphaned executions · disk-full returns a clean 500 |
 | Backup / restore | **Disaster-recovery drill executed**: dump → drop → restore → 20 tables, all rows, migration state intact, app boots and authenticates |
@@ -118,7 +118,7 @@ running against **real PostgreSQL 16.2**:
 **Readiness: 94%** (up from 92% M8). Raised because the system now runs on real
 PostgreSQL and backup/restore has actually been performed; held below 98%
 because the Docker deployment path has still never been executed, multi-replica
-operation is untested, and 31 minutes is not a 24-hour soak. Full evidence,
+operation is untested, and 48 minutes is not a 24-hour soak. Full evidence,
 including four defects found and fixed:
 **[docs/M9_VALIDATION_REPORT.md](docs/M9_VALIDATION_REPORT.md)** (current), **[docs/M8_VALIDATION_REPORT.md](docs/M8_VALIDATION_REPORT.md)**.
 

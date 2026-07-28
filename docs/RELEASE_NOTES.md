@@ -46,7 +46,7 @@ the restored database.
 
 | | |
 | --- | --- |
-| Long run | 31 min, 312 executions, **0 failures**, RSS 91→98 MB, CPU 1.0% of a core |
+| Long run | 48 min, 408 executions, **0 failures**, RSS 91→100 MB, CPU 1.0% of a core |
 | API | `/health` p95 2.9 ms · `/api/workflows/` p95 8.4 ms · login 210 ms (PBKDF2, by design) |
 | Workflow | p50 57 ms, p95 68 ms; 20 concurrent runs all completed |
 | Startup / shutdown | 1.1 s / 188 ms |
@@ -56,7 +56,7 @@ the restored database.
 ### Known limitations
 
 Docker has still never been executed here — no runtime, no reachable registry.
-31 minutes is not a 24-hour soak, and multi-replica operation is untested.
+48 minutes is not a 24-hour soak, and multi-replica operation is untested.
 Readiness is **94%**, deliberately not higher. See
 `M9_VALIDATION_REPORT.md` §9 and §11.
 

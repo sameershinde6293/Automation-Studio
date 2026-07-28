@@ -1,6 +1,32 @@
 # Known Issues
 
-## M7 (release candidate) — current
+## M9 (release candidate 3) — current
+
+M9 ran Creator OS on a production-shaped staging deployment backed by **real
+PostgreSQL 16.2**, measured it, and injected failures. Four defects were found
+and fixed (`M9_VALIDATION_REPORT.md`). What remains open is below, followed by
+everything carried forward from earlier milestones.
+
+| # | Issue | Impact | Workaround |
+| --- | --- | --- | --- |
+| M9-1 | **Docker runtime still never executed** — fourth consecutive milestone | Image build, `docker compose up`, container networking, volume persistence across recreate, in-container HEALTHCHECK execution, restart policies and enforcement of the `cpus`/`memory` limits are all unverified. No container runtime exists here (no `docker`/`podman`/`nerdctl`, no `/var/run/docker.sock`) and every registry is unreachable | 44 static checks and 53 asset tests pass, and every *process* the containers would run has now been executed outside them against the same PostgreSQL 16.2 — including backup and restore. **Treat the first containerised deployment as a validation exercise**; use `scripts/deploy.sh` |
+| M9-2 | **Long run was 31 minutes, not 24 hours** | Slow leaks of a few MB/hour, log rotation at the 10 MB boundary, `pool_recycle` at 1800 s and multi-hour scheduler drift are unproven. Within the 31-minute window there were 0 failures, RSS grew 91→98 MB tracking database growth, and FDs/threads stayed bounded | The sandbox does not persist across sessions (a reset destroyed an earlier run mid-flight). Run a 24-hour soak on real infrastructure before declaring GA |
+| M9-3 | **Single-node only** | No multi-replica run, no PgBouncer, no load balancer. `WEB_CONCURRENCY>1` multiplies the in-process rate limit and gives each worker its own execution queue; neither effect has been measured | Keep `WEB_CONCURRENCY=1` until measured, and read the Scalability section of `DEPLOYMENT.md` before scaling out |
+| M9-4 | SSRF guard blocks the reserved documentation ranges | `192.0.2.0/24`, `198.51.100.0/24` and `203.0.113.0/24` are classified `is_private` by Python's `ipaddress`, so workflow HTTP nodes cannot reach them. Conservative in the right direction, but it makes those ranges unusable as test targets | None needed in production. Use a real public host when testing HTTP nodes |
+| M9-5 | No TLS termination executed | The nginx and Caddy configs are validated statically but neither has served a request here (no nginx binary available) | Run `nginx -t` on the deployment host before cutting over |
+
+### Resolved in M9
+
+| Issue | Severity | Resolution |
+| --- | --- | --- |
+| **`backup.sh` reported success while producing no database backup.** Exit `0` with no dump: missing `pg_dump` was a warning, a failing `pg_dump` was swallowed by `|| echo`, the connection was rebuilt from `POSTGRES_*` (dropping host and port), and the media archive ignored `MEDIA_ROOT`. `restore.sh` mirrored it — `psql "${DATABASE_URL:-}"` with no `ON_ERROR_STOP` | **Critical** | Both scripts fail loudly, use `DATABASE_URL`, fall back to a bundled `pg_dump`/`psql`, verify with `gunzip -t` + size check, checksum artefacts, honour `MEDIA_ROOT`, and use `ON_ERROR_STOP=1`. Proven by a dump → drop → restore → boot → authenticate drill (M9-F3) |
+| **Database pool saturation invisible in `/metrics`** — the documented concurrency limit had no telemetry, so exhaustion looked identical to a slow database | High | Six `creator_os_db_pool_*` gauges refreshed on scrape; verified moving under 40 concurrent clients (M9-F1) |
+| **Account lockout never written to the audit trail** — visible only as a log line | Medium | `auth.account.locked` emitted with username, failure count and `locked_until`; verified in PostgreSQL (M9-F2) |
+| **Shipped version disagreed with published version** — docs said rc2, code said rc1 | Low | Unified on `1.1.0-rc3` and enforced by `test_release_consistency_m9.py` (M9-F4/F5) |
+
+---
+
+## M7 (release candidate) — carried forward
 
 M7 executed the documented installation and deployment procedure from a clean
 clone. Two release-blocking configuration defects were found and fixed

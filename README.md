@@ -8,7 +8,7 @@ streaming and a full execution history.
 Runs two ways from one codebase: a **local desktop app** (SQLite, zero
 configuration) or a **multi-user server** (PostgreSQL, JWT auth, RBAC, metrics).
 
-**Version 1.1.0-rc2** · Release Candidate 2 · [Release notes](docs/RELEASE_NOTES.md) · [Known issues](docs/KNOWN_ISSUES.md) · [M8 validation](docs/M8_VALIDATION_REPORT.md)
+**Version 1.1.0-rc3** · Release Candidate 3 · [Release notes](docs/RELEASE_NOTES.md) · [Known issues](docs/KNOWN_ISSUES.md) · [M9 validation](docs/M9_VALIDATION_REPORT.md)
 
 ---
 
@@ -96,23 +96,31 @@ and hardening checklist: **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** and **[doc
 
 ## Project status
 
-Release Candidate 2. Verified on 2026-07-27 (M8):
+Release Candidate 3. Verified on 2026-07-28 (M9) on a staging deployment
+running against **real PostgreSQL 16.2**:
 
 | | |
 | --- | --- |
-| Backend tests | **1529 passed / 8 skipped** (SQLite, +45 M8) · **1492 passed, 0 skipped** (PostgreSQL 16.2, M7) |
-| Backend coverage | **89%** |
+| Backend tests | **1562 passed / 10 skipped** (SQLite) · **1570 passed / 2 skipped** (PostgreSQL 16.2) |
+| PostgreSQL migration suite | **8/8 executed** — skipped in M6, M7 and M8, runs for the first time in M9 |
 | Frontend tests | **179 passed** |
 | Typecheck / production build | clean · 343.85 kB (109.08 kB gzip) |
-| Migrations | upgrade → downgrade → re-upgrade verified (SQLite + PostgreSQL M7) |
+| Migrations | upgrade → downgrade → re-upgrade verified (SQLite + PostgreSQL) |
 | Examples | **4/4 executed** against live backend (with SSL_CERT_FILE workaround for TLS interception) |
-| Docker | **Partially validated** — 44 static checks + 53 docker asset tests (23 M7 + 30 M8), explicit network, log rotation, volume driver, OCI labels, nginx -t; runtime **still requires Docker host** — see M8 report §1.6 |
-| CI | **Activated** in M8 — `.github/workflows/ci.yml` with 7 jobs (backend, migrations, migrations-postgres, frontend, docker, examples, production-build) |
-| Deployment scripts | `deploy.sh`, `upgrade.sh`, `rollback.sh`, `backup.sh`, `restore.sh`, `production_check.sh`, `docker_validate.sh`, `container_validation.sh` — source path PASSED |
-| Observability | `/health`, `/health/live`, `/health/ready`, `/metrics`, JSON logs with redaction, log rotation 10m x5, backup/restore — verified |
+| Long run | **31 min** continuous under load: 312 executions, **0 failures**, 0 non-200 probes, RSS 91→98 MB, CPU 1.0% of one core |
+| Performance | `/health` p95 2.9 ms · workflow exec p95 68 ms · 100 concurrent readers, 0 errors · startup 1.1 s · shutdown 188 ms |
+| Failure testing | DB loss → 503 ready / 200 live, recovers in 1 s without restart · SIGKILL and SIGTERM leave no orphaned executions · disk-full returns a clean 500 |
+| Backup / restore | **Disaster-recovery drill executed**: dump → drop → restore → 20 tables, all rows, migration state intact, app boots and authenticates |
+| Docker | **Partially validated** — 44 static checks + 53 docker asset tests; runtime **still never executed** (no container runtime, registries unreachable) — see M9 report §9 |
+| CI | `ci/github-actions-ci.yml` present; `.github/workflows/ci.yml` still requires maintainer activation |
+| Observability | `/health`, `/health/live`, `/health/ready`, `/metrics` (**14 metric families**, incl. new DB pool gauges), JSON logs with correlation IDs, audit log |
 
-**Readiness: 92%** (up from 88% M7). Not higher, because Docker runtime has still never been executed in this environment — honest per engineering rules. Details and full evidence:
-**[docs/M8_VALIDATION_REPORT.md](docs/M8_VALIDATION_REPORT.md)** (current), **[docs/M7_RELEASE_AUDIT.md](docs/M7_RELEASE_AUDIT.md)**.
+**Readiness: 94%** (up from 92% M8). Raised because the system now runs on real
+PostgreSQL and backup/restore has actually been performed; held below 98%
+because the Docker deployment path has still never been executed, multi-replica
+operation is untested, and 31 minutes is not a 24-hour soak. Full evidence,
+including four defects found and fixed:
+**[docs/M9_VALIDATION_REPORT.md](docs/M9_VALIDATION_REPORT.md)** (current), **[docs/M8_VALIDATION_REPORT.md](docs/M8_VALIDATION_REPORT.md)**.
 
 ---
 
@@ -180,7 +188,7 @@ backend/           FastAPI + SQLAlchemy 2 + Alembic
   app/domain/      ORM models and repositories
   app/services/    Workflow engine, AI orchestration, media, security, plugins
   app/infrastructure/  Config, database, logging, metrics, scheduler
-  tests/           1492 tests
+  tests/           1562 tests
 
 examples/          Executable example workflows
 scripts/           Build, local CI, smoke tests, load test, example verifier

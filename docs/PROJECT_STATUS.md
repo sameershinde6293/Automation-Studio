@@ -1,8 +1,8 @@
 # Project Status
 
-**Current phase:** Release Candidate 2
-**Version:** 1.1.0-rc2
-**Last updated:** 2026-07-27 (M8)
+**Current phase:** Release Candidate 3
+**Version:** 1.1.0-rc3
+**Last updated:** 2026-07-28 (M9)
 
 ## Milestone progress
 
@@ -16,8 +16,9 @@
 | M5 | Production readiness & platform hardening | ✅ Complete (merged, PR #7) |
 | M6 | Production validation, scalability & operational readiness | ✅ Complete (merged, PR #8) — 85%, see `M6_VALIDATION_REPORT.md` |
 | M7 | Production deployment & Release Candidate | ✅ Complete (merged, PR #9) — 88%, see `M7_RELEASE_AUDIT.md` |
-| M8 | Infrastructure Validation & Container Deployment | ✅ Complete (this branch) — 92%, see `M8_VALIDATION_REPORT.md` |
-| M9 | Durable queue & horizontal scaling (Redis) | ⬜ Planned |
+| M8 | Infrastructure Validation & Container Deployment | ✅ Complete (merged, PR #10) — 92%, see `M8_VALIDATION_REPORT.md` |
+| M9 | Production staging & real-world validation | ✅ Complete (this branch) — 94%, see `M9_VALIDATION_REPORT.md` |
+| M10 | Durable queue & horizontal scaling (Redis) | ⬜ Planned |
 | M10 | Media pipeline UX & first-party providers | ⬜ Planned |
 
 ## Health — all figures measured, not estimated

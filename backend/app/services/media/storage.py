@@ -6,6 +6,7 @@ import hashlib
 import os
 import re
 import secrets
+import tempfile
 from pathlib import Path
 from typing import BinaryIO, Dict, Tuple
 
@@ -126,31 +127,45 @@ def write_stream(stream: BinaryIO, filename: str, *, max_bytes: int | None = Non
     digest = hashlib.sha256()
     size = 0
     first = b""
-    with dest.open("wb") as out:
-        while True:
-            chunk = stream.read(CHUNK_SIZE)
-            if not chunk:
-                break
-            size += len(chunk)
-            if size > max_bytes:
-                out.close()
-                try:
-                    dest.unlink(missing_ok=True)
-                finally:
+    # Write beside the destination and publish with replace() so an interrupted
+    # upload can never leave a project-visible partial asset.
+    temp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(dir=dest.parent, prefix=f".{safe_name}.", delete=False) as out:
+            temp_path = Path(out.name)
+            while True:
+                chunk = stream.read(CHUNK_SIZE)
+                if not chunk:
+                    break
+                size += len(chunk)
+                if size > max_bytes:
                     raise ValidationError(
                         "Upload exceeds MEDIA_MAX_FILE_BYTES.",
-                        details={"max_bytes": max_bytes},
-                        status_code=413,
+                        details={"max_bytes": max_bytes}, status_code=413,
                         code="payload_too_large",
                     )
-            if len(first) < 512:
-                first += chunk[: 512 - len(first)]
-            digest.update(chunk)
-            out.write(chunk)
-    if size == 0:
-        dest.unlink(missing_ok=True)
-        raise ValidationError("Uploaded file is empty.")
-    content_type, media_type = detect_mime(first, safe_name)
+                if len(first) < 512:
+                    first += chunk[: 512 - len(first)]
+                digest.update(chunk)
+                out.write(chunk)
+            out.flush()
+            os.fsync(out.fileno())
+        if size == 0:
+            raise ValidationError("Uploaded file is empty.")
+        content_type, media_type = detect_mime(first, safe_name)
+        if media_type == "image":
+            # Magic bytes alone are insufficient: reject truncated/corrupt images.
+            try:
+                from PIL import Image
+                with Image.open(temp_path) as image:
+                    image.verify()
+            except Exception as exc:
+                raise ValidationError("Uploaded image is corrupt or unsupported.") from exc
+        os.replace(temp_path, dest)
+        temp_path = None
+    finally:
+        if temp_path is not None:
+            temp_path.unlink(missing_ok=True)
     return {
         "filename": safe_name,
         "file_path": to_relative(dest),
